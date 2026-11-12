@@ -123,6 +123,8 @@ body::after {
   transform: translateX(var(--bx, 0px)) scale(var(--bs)); transform-origin: 41.4% 50%; will-change: transform;  /* shrink around the brain itself, then slide into the free lane */
 }
 .brain-col { pointer-events: none; }
+.tl { display: none; }
+@media (max-width: 767.98px) { .tl { display: flex; pointer-events: auto; } }
 #brain .bh-stage, #brain .bh-scale { pointer-events: auto; }
 #brain .bh-label, #brain .bh-reset, #brain .bh-readout { display: none; }
 #brain .bh-scale { left: auto; right: var(--gutter); align-items: flex-end; }
@@ -295,42 +297,57 @@ body::after {
   body::after { display: none; }
   .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
   .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
+  /* the brain is the first island: pinned at the top, 30% lower than the old 1/3 band, height a multiple of 8
+     (JS sets --brain-h); the slice timeline lies across its bottom edge */
+  :root { --brain-h: 184px; --tl-h: 40px; }
   .brain-col {
-    z-index: 10; top: env(safe-area-inset-top, 0px); bottom: auto;
-    width: 100%; height: 33.333vh; height: 33.333svh;
-    background: var(--bg);
+    z-index: 10; top: calc(env(safe-area-inset-top, 0px) + var(--island-gap-h)); bottom: auto;
+    left: var(--island-gap-h); right: var(--island-gap-h); width: auto; height: var(--brain-h);
+    background: var(--bg); border-radius: var(--island-r); overflow: hidden;
+    box-shadow: 0 0 0 var(--island-gap-h) var(--island-gap);  /* grey frame above and beside it, so content scrolls under cleanly */
   }
-  /* no hard edge: the band melts from black into the page below it */
-  .brain-col::after {
-    content: ""; position: absolute; left: 0; right: 0; top: 100%; height: var(--s-16);
-    background: linear-gradient(var(--bg), transparent); pointer-events: none;
+  .brain-col::before {  /* fills the notch / status bar strip above the island */
+    content: ""; position: fixed; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + var(--island-gap-h));
+    background: var(--island-gap);
   }
-  .brain-col::before {
-    content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top, 0px);
-    background: var(--bg);
+  #brain { bottom: var(--tl-h); --brain-fit: 1.2; --brain-offset-x: 0.42; --brain-offset-y: 0; --brain-glow: 0.8; }
+  #brain .bh-stage { touch-action: none; }
+  @media (max-width: 359.98px) { #brain { --brain-offset-x: 0.22; } .brain-note-text { font-size: 17px; } }  /* the finger belongs to the brain here: rotate both ways, no scroll hijack */
+  #brain .bh-scale, .slice-counter { display: none; }
+  /* note on the left of the island, arrow points right at the brain */
+  .brain-note { left: 16px; top: 18px; bottom: auto; width: 46px; height: 34px; }
+  .brain-note .brain-note-arrow { transform: none; }
+  .brain-note-text {
+    right: auto; left: 0; top: calc(100% + 4px); bottom: auto; width: 9.5em; white-space: normal;
+    font-size: 19px; line-height: 1.05; transform: rotate(-3deg); transform-origin: left top;
   }
-  #brain { --brain-fit: 1.15; --brain-offset-x: -0.18; --brain-glow: 0.8; }
-  /* phone: note under the brain, arrow points up at it */
-  .brain-note { left: 22px; top: auto; bottom: 30px; width: 66px; height: 48px; }
-  .brain-note-text { right: auto; left: 34px; top: auto; bottom: -24px; font-size: 21px; transform: rotate(-2deg); transform-origin: left bottom; }
-  /* timeline scale: pinned to the right edge of the screen, 75% of its height */
-  #brain .bh-scale { position: fixed; top: 50vh; top: 50svh; transform: translateY(-50%); right: max(12px, env(safe-area-inset-right, 0px)); }
-  #brain .bh-ticks { height: 60vh; height: 60svh; }
-  #brain .bh-tick:nth-child(odd of .bh-tick) { display: block; }
-  .slice-counter { position: fixed; top: calc(50vh - 30vh - 30px); top: calc(50svh - 30svh - 30px); right: max(12px, env(safe-area-inset-right, 0px)); }
+  /* timeline: a horizontal ruler across the bottom of the island; drag it to scroll the page */
+  .tl {
+    position: absolute; z-index: 3; left: var(--s-4); right: var(--s-4); bottom: 0; height: var(--tl-h);
+    display: flex; align-items: center; gap: var(--s-3);
+    touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none;
+  }
+  .tl.is-dragging { cursor: grabbing; }
+  .tl-n { flex: none; width: 5ch; font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .tl-n span { color: var(--fg-3); }
+  .tl-track { position: relative; flex: 1; height: 100%; }
+  .tl-ticks { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; }
+  .tl-ticks i { width: 1px; height: 6px; background: var(--fg-3); opacity: 0.45; transition: height 120ms var(--ease), opacity 120ms var(--ease); }
+  .tl-ticks i.major { height: 10px; opacity: 0.7; }
+  .tl-ticks i.near { height: 12px; opacity: 0.9; }
+  .tl-handle { position: absolute; top: 50%; left: 0; width: 2px; height: 18px; margin: -9px 0 0 -1px; border-radius: 2px; background: var(--fg); will-change: transform; }
   .content {
     display: grid; gap: var(--island-gap-h);
-    padding: calc(env(safe-area-inset-top, 0px) + 33.333vh + var(--s-8)) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
-    padding-top: calc(env(safe-area-inset-top, 0px) + 33.333svh + var(--s-8));
+    padding: calc(env(safe-area-inset-top, 0px) + var(--island-gap-h) * 2 + var(--brain-h)) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
   }
   .intro, .work, .about {
     max-width: none; background: var(--bg); border-radius: var(--island-r);
-    padding: var(--s-8) calc(max(12px, env(safe-area-inset-right, 0px)) + 44px) var(--s-8) var(--gutter);  /* right side clears the timeline */
+    padding: var(--s-8) var(--gutter);
   }
   .intro { min-height: 0; }
   .work > .label, .about > .label { padding-top: 0; border-top: 0; }
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
-  .project { padding-block: var(--s-8) var(--s-16); scroll-margin-top: calc(var(--header-h) + 33.333svh + var(--s-4)); }
+  .project { padding-block: var(--s-8) var(--s-16); scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--brain-h) + var(--s-6)); }
   .p-meta { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s-4); }
   .p-facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
@@ -354,6 +371,10 @@ body::after {
 <aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
   <div id="brain"></div>
   <div class="slice-counter" id="slice-counter" aria-hidden="true"></div>
+  <div class="tl" id="tl" role="scrollbar" aria-controls="top" aria-orientation="horizontal" aria-label="Хронология: прокрутка страницы" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+    <span class="tl-n" id="tl-n"></span>
+    <span class="tl-track" id="tl-track"><span class="tl-ticks" id="tl-ticks"></span><span class="tl-handle" id="tl-handle"></span></span>
+  </div>
   <p class="brain-note" id="brain-note">
     <span class="brain-note-text">Кстати, это мой настоящий мозг</span>
     <svg class="brain-note-arrow" viewBox="0 0 110 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -526,6 +547,7 @@ body::after {
     // the timeline is a scrollbar for the whole page: top of the page = top of the scale, bottom = bottom
     const progress = Math.min(1, Math.max(0, window.scrollY / Math.max(1, root.scrollHeight - window.innerHeight)));
     brainWidth();
+    placeTl();
     setNav(line);
     window.dispatchEvent(new CustomEvent("brain:slice", {
       detail: { index: idx, total, year: projects[idx].year, id: projects[idx].id, progress }
@@ -556,10 +578,65 @@ body::after {
   }
   if (document.fonts) document.fonts.ready.then(placeIndicator);
 
+  // Phones: island height = 70% of the old 1/3 band, snapped to 8px. Only re-measured when the width changes,
+  // so the iOS address bar showing/hiding never makes the island jump.
+  let lastW = 0;
+  function sizeBrain() {
+    if (window.innerWidth === lastW) return;
+    lastW = window.innerWidth;
+    root.style.setProperty("--brain-h", Math.max(160, Math.round(window.innerHeight / 3 * 0.7 / 8) * 8) + "px");
+  }
+  sizeBrain();
+
+  // Horizontal timeline in the brain island: a scrollbar for the whole page. The handle follows the scroll;
+  // grab it (or anywhere on the ruler) and drag to scroll.
+  const tl = document.getElementById("tl"), tlTrack = document.getElementById("tl-track");
+  const tlHandle = document.getElementById("tl-handle"), tlTicks = document.getElementById("tl-ticks");
+  const maxScroll = () => Math.max(1, root.scrollHeight - window.innerHeight);
+  let tlTickEls = [];
+  function buildTl(n) {
+    tlTicks.innerHTML = Array.from({ length: n }, (_, i) => `<i${i % 5 === 0 ? ' class="major"' : ""}></i>`).join("");
+    tlTickEls = Array.from(tlTicks.children);
+  }
+  buildTl(54);
+  let tlNear = -1;
+  function placeTl() {
+    if (wide.matches) return;
+    const f = Math.min(1, Math.max(0, window.scrollY / maxScroll()));
+    tlHandle.style.transform = `translateX(${(f * tlTrack.clientWidth).toFixed(1)}px)`;
+    tl.setAttribute("aria-valuenow", Math.round(f * 100));
+    const near = Math.round(f * (tlTickEls.length - 1));
+    if (near !== tlNear) {
+      tlTickEls.forEach((t, i) => t.classList.toggle("near", Math.abs(i - near) <= 1));
+      tlNear = near;
+    }
+  }
+  const tlFrac = (x) => { const r = tlTrack.getBoundingClientRect(); return Math.min(1, Math.max(0, (x - r.left) / (r.width || 1))); };
+  let tlDrag = null;
+  tl.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const f = tlFrac(e.clientX), cur = window.scrollY / maxScroll();
+    const near = Math.abs(f - cur) * tlTrack.clientWidth < 24;  // grabbing the handle keeps the offset, like a scrollbar thumb
+    tlDrag = { id: e.pointerId, off: near ? cur - f : 0 };
+    if (!near) window.scrollTo({ top: f * maxScroll(), behavior: "instant" });
+    tl.setPointerCapture(e.pointerId); tl.classList.add("is-dragging");
+  });
+  tl.addEventListener("pointermove", (e) => {
+    if (!tlDrag || e.pointerId !== tlDrag.id) return;
+    window.scrollTo({ top: Math.min(1, Math.max(0, tlFrac(e.clientX) + tlDrag.off)) * maxScroll(), behavior: "instant" });
+  });
+  const tlEnd = (e) => { if (tlDrag && e.pointerId === tlDrag.id) { tlDrag = null; tl.classList.remove("is-dragging"); } };
+  tl.addEventListener("pointerup", tlEnd); tl.addEventListener("pointercancel", tlEnd);
+  tl.addEventListener("keydown", (e) => {
+    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!step) return;
+    e.preventDefault(); window.scrollBy({ top: step * window.innerHeight * 0.6 });
+  });
+
   let queued = false;
   const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; update(); }); } };
   window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("resize", () => { placeIndicator(); onScroll(); });
+  window.addEventListener("resize", () => { sizeBrain(); placeIndicator(); onScroll(); });
   update();
 
   // Copy email
@@ -579,6 +656,7 @@ body::after {
   import { mountBrainHero } from "./brain/brain-hero.js";
   const root = document.getElementById("brain");
   const counter = document.getElementById("slice-counter");
+  const tlN = document.getElementById("tl-n");
   const hero = mountBrainHero(root, { dataUrl: "brain/data/" });
   let count = 0, last = 0;
   const apply = () => { if (count) hero.setSlice(count - last * (count - 1)); };
@@ -628,7 +706,7 @@ body::after {
     const show = () => {
       const n = +ticks.getAttribute("aria-valuemax"), v = +ticks.getAttribute("aria-valuenow");
       if (n && !count) { count = n; apply(); }
-      if (n) counter.innerHTML = `${pad(v)}<span>/${n}</span>`;
+      if (n) counter.innerHTML = tlN.innerHTML = `${pad(v)}<span>/${n}</span>`;
     };
     new MutationObserver(show).observe(ticks, { attributes: true, attributeFilter: ["aria-valuemax", "aria-valuenow"] });
     show();
