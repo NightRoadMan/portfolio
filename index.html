@@ -307,18 +307,18 @@ body::after {
     background: var(--island-gap);  /* the 8px under the card is page grey, so cards slide under a clean gap */
   }
   .brain-col::before {  /* the card itself: black, rounded like the others */
-    content: ""; position: absolute; inset: 0 0 var(--island-gap-h) 0; border-radius: var(--island-r); background: var(--bg);
+    content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: var(--island-gap-h); border-radius: var(--island-r); background: var(--bg);
   }
   .brain-col::after {  /* grey strip from the top of the screen down to the card, so nothing shows above it */
     content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--stick); background: var(--island-gap);
   }
-  #brain { inset: 0 0 calc(var(--tl-h) + var(--island-gap-h)) 0; clip-path: inset(0 round var(--island-r) var(--island-r) 0 0); }
+  /* Safari ignores plain radius clipping on a WebGL canvas; the mask forces it */
+  #brain { inset: 0 0 calc(var(--tl-h) + var(--island-gap-h)) 0; border-radius: var(--island-r) var(--island-r) 0 0; overflow: hidden;
+           isolation: isolate; -webkit-mask-image: linear-gradient(#000, #000); mask-image: linear-gradient(#000, #000); }
   #brain { --brain-fit: 1.2; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.8; }
   #brain .bh-stage { touch-action: none; }
   @media (max-width: 359.98px) { .brain-note { display: none; } }
-  /* the canvas clear colour can come out a shade off the CSS colour on some phones; lighten keeps the island
-     exactly the card colour and only lets the brain's light points through */
-  #brain canvas { mix-blend-mode: lighten; }  /* the finger belongs to the brain here: rotate both ways, no scroll hijack */
+  /* the finger belongs to the brain here: rotate both ways, no scroll hijack */
   #brain .bh-scale, .slice-counter { display: none; }
   /* note on the left of the island, arrow points right at the brain */
   .brain-note { left: 16px; top: 18px; bottom: auto; width: 46px; height: 34px; }
