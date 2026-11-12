@@ -146,7 +146,7 @@ body::after {
   padding-top: calc(var(--header-h) + var(--s-24));
   padding-bottom: var(--s-24);
 }
-.intro, .work, .about { max-width: calc(100vw - 33.333vw - var(--gutter) - var(--gap)); pointer-events: auto; }
+.intro, .work, .about { max-width: calc(100vw - 40vw - var(--gutter) - var(--gap)); pointer-events: auto; }  /* narrower than the brain lane, for air */
 .intro { max-width: calc(50vw - var(--gutter) - var(--gap)); }
 
 /* intro */
@@ -483,7 +483,7 @@ body::after {
     const colW = brainCol.clientWidth, colL = vw - colW;
     const d0 = 0.61 * Math.min(vh, colW);
     const gap = parseFloat(getComputedStyle(root).getPropertyValue("--gap")) || 32;
-    const left = work.getBoundingClientRect().right + gap;
+    const left = vw * 2 / 3;  // the brain lane starts at 2/3 of the screen, independent of the content width
     const cr = counterEl && counterEl.getBoundingClientRect();
     const right = (cr && cr.width > 0 ? cr.left : cr.right - 48) - gap * 0.5;
     const d = Math.max(80, Math.min(right - left, 0.62 * vh, d0 * 0.8));
