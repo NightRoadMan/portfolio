@@ -11,7 +11,7 @@
 /* Layout (Scandinavian: one quiet grid, lots of air, type does the work):
    desktop — content on the left, the BrainTM brain fixed on the right; its width goes
    1/2 of the screen on the intro → 2/5 → 1/3 once the projects start.
-   narrow  — the brain is a sticky band under the centred header, 1/3 of the screen tall.
+   narrow  — the brain is a hero island on the first screen that folds into a capsule in the corner on scroll.
    Colour: black, white, greys only. Type: Medeo Sans + Medeo Mono (SIL OFL, self-hosted). */
 @font-face { font-family: "Medeo Sans"; src: url("fonts/MedeoSansVariable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "Medeo Mono"; src: url("fonts/MedeoMonoVariable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
@@ -282,54 +282,89 @@ body::after {
   .brain-note.is-on .shaft, .brain-note.is-on .head, .brain-note.is-on .brain-note-text { transition: none; }
 }
 
+.brain-mini, .brain-close, .brain-hint { display: none; }
+@media (max-width: 767.98px) { .brain-mini { display: flex; } }
+.brain-close {
+  position: absolute; z-index: 5; top: calc(env(safe-area-inset-top, 0px) + var(--s-3)); right: max(12px, env(safe-area-inset-right, 0px));
+  width: 44px; height: 44px; padding: 0; align-items: center; justify-content: center;
+  background: rgba(34, 34, 37, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 50%;
+  color: var(--fg); cursor: pointer; pointer-events: auto;
+}
+.brain-hint {
+  position: absolute; z-index: 5; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-8));
+  margin: 0; justify-content: center; color: var(--fg-3); text-align: center; pointer-events: none;
+}
+
 @media (max-width: 767.98px) {
-  /* menu sits at the bottom on phones; the brain band takes the top */
-  :root { --header-h: 0px; --bw: 100vw; --bs: 1; --island-gap: #18181b; --island-gap-h: 8px; --island-r: 24px; }
-  /* island layout: grey page; the intro, projects and about each sit on it as a rounded dark island.
-     the brain band stays dark and melts into the page */
+  /* phones: menu at the bottom. the brain is a hero island on the first screen; scrolling folds it into
+     a small capsule in the top right corner (JS drives --col-tf / --col-clip), a tap opens it full screen */
+  :root { --header-h: 0px; --bw: 100vw; --bs: 1; --island-gap: #18181b; --island-gap-h: 8px; --island-r: 24px;
+          --safe-t: env(safe-area-inset-top, 0px); --hero-h: 46vh; --mini-d: 48px; }
+  @supports (height: 1svh) { :root { --hero-h: 46svh; } }
   body { background: var(--island-gap); }
   body::after { display: none; }
   .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
   .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
   .brain-col {
-    z-index: 10; top: env(safe-area-inset-top, 0px); bottom: auto;
-    width: 100%; height: 33.333vh; height: 33.333svh;
+    z-index: 10; top: 0; bottom: auto; width: 100%; height: calc(var(--safe-t) + var(--hero-h));
     background: var(--bg);
+    transform-origin: 0 0; transform: var(--col-tf, none);
+    clip-path: var(--col-clip, inset(0 round 0 0 var(--island-r) var(--island-r)));
+    will-change: transform, clip-path;
   }
-  /* no hard edge: the band melts from black into the page below it */
-  .brain-col::after {
-    content: ""; position: absolute; left: 0; right: 0; top: 100%; height: var(--s-16);
-    background: linear-gradient(var(--bg), transparent); pointer-events: none;
+  #brain { inset: var(--safe-t) 0 var(--s-8) 0; --brain-fit: 1.3; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.8; }
+  .brain-mini-on #brain .bh-stage { pointer-events: none; }
+  /* the vertical scale and its counter only exist in the full-screen view */
+  #brain .bh-scale, .slice-counter { display: none; }
+  /* note under the brain, arrow points up at it */
+  .brain-note { left: calc(50% - 138px); top: auto; bottom: 34px; width: 58px; height: 42px; }
+  .brain-note-text { right: auto; left: 30px; top: auto; bottom: -22px; font-size: 21px; transform: rotate(-2deg); transform-origin: left bottom; }
+
+  /* the capsule the brain folds into: same language as the menu capsule, slice counter + round lens */
+  .brain-mini {
+    position: fixed; z-index: 9; top: calc(var(--safe-t) + var(--s-3)); right: max(12px, env(safe-area-inset-right, 0px));
+    display: flex; align-items: center; gap: var(--s-2);
+    height: calc(var(--mini-d) + 8px); padding: 0 calc(var(--mini-d) + 14px) 0 var(--s-4); margin: 0;
+    background: rgba(34, 34, 37, 0.8); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 999px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    color: var(--fg); font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+    white-space: nowrap; cursor: pointer; opacity: 0; pointer-events: none; -webkit-tap-highlight-color: transparent;
   }
-  .brain-col::before {
-    content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top, 0px);
-    background: var(--bg);
+  .brain-mini .k, .brain-mini .n span { color: var(--fg-3); }
+  .brain-mini::after {  /* dark seat for the lens, so the capsule looks whole before the brain lands */
+    content: ""; position: absolute; right: 3px; top: 3px; width: var(--mini-d); height: var(--mini-d); border-radius: 50%; background: var(--bg);
   }
-  #brain { --brain-fit: 1.15; --brain-offset-x: -0.18; --brain-glow: 0.8; }
-  /* phone: note under the brain, arrow points up at it */
-  .brain-note { left: 22px; top: auto; bottom: 30px; width: 66px; height: 48px; }
-  .brain-note-text { right: auto; left: 34px; top: auto; bottom: -24px; font-size: 21px; transform: rotate(-2deg); transform-origin: left bottom; }
-  /* timeline scale: pinned to the right edge of the screen, 75% of its height */
-  #brain .bh-scale { position: fixed; top: 50vh; top: 50svh; transform: translateY(-50%); right: max(12px, env(safe-area-inset-right, 0px)); }
-  #brain .bh-ticks { height: 60vh; height: 60svh; }
-  #brain .bh-tick:nth-child(odd of .bh-tick) { display: block; }
-  .slice-counter { position: fixed; top: calc(50vh - 30vh - 30px); top: calc(50svh - 30svh - 30px); right: max(12px, env(safe-area-inset-right, 0px)); }
+  .brain-mini-on .brain-mini { pointer-events: auto; }
+
+  /* full screen: the brain alone, drag to rotate, the scale on the right scrubs the slices */
+  .brain-open body { overflow: hidden; }
+  .brain-open .brain-col { height: 100vh; height: 100dvh; transform: none; clip-path: none; animation: brain-in 240ms var(--ease); }
+  .brain-open #brain { inset: var(--safe-t) 0 0 0; --brain-fit: 1.05; --brain-offset-x: -0.1; }  /* read on the one resize: leaves room for the scale */
+  .brain-open #brain .bh-stage { touch-action: none; pointer-events: auto; }
+  .brain-open .topbar, .brain-open .brain-mini, .brain-open .brain-note { display: none; }
+  .brain-open #brain .bh-scale { display: flex; top: 50%; transform: translateY(-50%); right: max(12px, env(safe-area-inset-right, 0px)); }
+  .brain-open #brain .bh-ticks { height: 56vh; }
+  .brain-open #brain .bh-tick:nth-child(odd of .bh-tick) { display: block; }
+  .brain-open .slice-counter { display: block; top: calc(var(--safe-t) / 2 + 50% - 28vh - 30px); right: max(12px, env(safe-area-inset-right, 0px)); }
+  .brain-open .brain-close, .brain-open .brain-hint { display: flex; }
+  @keyframes brain-in { from { opacity: 0; } }
+
   .content {
     display: grid; gap: var(--island-gap-h);
-    padding: calc(env(safe-area-inset-top, 0px) + 33.333vh + var(--s-8)) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
-    padding-top: calc(env(safe-area-inset-top, 0px) + 33.333svh + var(--s-8));
+    padding: calc(var(--safe-t) + var(--hero-h) + var(--island-gap-h)) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
   }
   .intro, .work, .about {
     max-width: none; background: var(--bg); border-radius: var(--island-r);
-    padding: var(--s-8) calc(max(12px, env(safe-area-inset-right, 0px)) + 44px) var(--s-8) var(--gutter);  /* right side clears the timeline */
+    padding: var(--s-8) var(--gutter);
   }
   .intro { min-height: 0; }
   .work > .label, .about > .label { padding-top: 0; border-top: 0; }
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
-  .project { padding-block: var(--s-8) var(--s-16); scroll-margin-top: calc(var(--header-h) + 33.333svh + var(--s-4)); }
+  .project { padding-block: var(--s-8) var(--s-16); scroll-margin-top: calc(var(--safe-t) + var(--mini-d) + var(--s-8)); }
   .p-meta { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s-4); }
   .p-facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
+@media (prefers-reduced-motion: reduce) { .brain-open .brain-col { animation: none; } }
 </style>
 </head>
 <body>
@@ -350,6 +385,10 @@ body::after {
 <aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
   <div id="brain"></div>
   <div class="slice-counter" id="slice-counter" aria-hidden="true"></div>
+  <button class="brain-close" id="brain-close" type="button" aria-label="Закрыть мозг">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13"/></svg>
+  </button>
+  <p class="brain-hint mono">потяните, чтобы повернуть · шкала листает срезы</p>
   <p class="brain-note" id="brain-note">
     <span class="brain-note-text">Кстати, это мой настоящий мозг</span>
     <svg class="brain-note-arrow" viewBox="0 0 110 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -358,6 +397,9 @@ body::after {
     </svg>
   </p>
 </aside>
+<button class="brain-mini" id="brain-mini" type="button" aria-label="Открыть мозг на весь экран" tabindex="-1">
+  <span class="k">срез</span><span class="n" id="mini-counter"></span>
+</button>
 
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
@@ -493,9 +535,49 @@ body::after {
     const centre = colL + colW * 0.414;
     return { s: d / d0, x: (left + right) / 2 - centre };
   }
+  // Phones: the hero island folds into the capsule in the corner. Its bottom edge travels exactly with the
+  // scroll, so the gap to the intro island stays constant; the canvas is never resized, only transformed and clipped.
+  const brainEl = document.getElementById("brain");
+  const mini = document.getElementById("brain-mini");
+  function foldBrain() {
+    if (root.classList.contains("brain-open")) return;
+    const W = brainCol.offsetWidth, H = brainCol.offsetHeight;
+    const m = mini.getBoundingClientRect();
+    const R = (m.height - 8) / 2;                              // lens radius
+    const mx = m.right - 4 - R, my = m.top + m.height / 2;     // lens centre
+    const p = Math.min(1, Math.max(0, window.scrollY / Math.max(1, H - (my + R))));
+    const cx = brainEl.offsetLeft + brainEl.offsetWidth / 2, cy = brainEl.offsetTop + brainEl.offsetHeight / 2;
+    const d0 = 0.555 * 1.3 * Math.min(brainEl.offsetWidth, brainEl.offsetHeight);   // drawn brain width at --brain-fit 1.3
+    const s = lerp(1, (R * 2 * 0.86) / d0, p);
+    const tx = lerp(cx, mx, p) - cx * s, ty = lerp(cy, my, p) - cy * s;
+    const L = lerp(0, mx - R, p), T = lerp(0, my - R, p), Rt = lerp(W, mx + R, p), B = lerp(H, my + R, p);
+    const rTop = lerp(0, R, p) / s, rBot = lerp(24, R, p) / s;
+    const f = (n) => n.toFixed(2) + "px";
+    brainCol.style.setProperty("--col-tf", `translate(${f(tx)}, ${f(ty)}) scale(${s.toFixed(4)})`);
+    brainCol.style.setProperty("--col-clip", `inset(${f((T - ty) / s)} ${f(W - (Rt - tx) / s)} ${f(H - (B - ty) / s)} ${f((L - tx) / s)} round ${f(rTop)} ${f(rTop)} ${f(rBot)} ${f(rBot)})`);
+    mini.style.opacity = Math.min(1, Math.max(0, (p - 0.6) / 0.4)).toFixed(3);
+    const on = p >= 1;
+    if (on !== root.classList.contains("brain-mini-on")) { root.classList.toggle("brain-mini-on", on); mini.tabIndex = on ? 0 : -1; }
+  }
+  function unfoldBrain() {
+    brainCol.style.removeProperty("--col-tf"); brainCol.style.removeProperty("--col-clip");
+    root.classList.remove("brain-mini-on", "brain-open"); document.body.style.overflow = "";
+  }
+  // tap on the capsule: the brain alone on the whole screen; the canvas resizes once here, not per frame
+  const closeBtn = document.getElementById("brain-close");
+  function openBrain() { root.classList.add("brain-open"); closeBtn.focus({ preventScroll: true }); }
+  function closeBrain() {
+    if (!root.classList.contains("brain-open")) return;
+    root.classList.remove("brain-open"); update(); mini.focus({ preventScroll: true });
+  }
+  mini.addEventListener("click", openBrain);
+  closeBtn.addEventListener("click", closeBrain);
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeBrain(); });
+
   function brainWidth() {
-    if (!wide.matches) { bsTarget = 1; bxTarget = 0; }
+    if (!wide.matches) { bsTarget = 1; bxTarget = 0; foldBrain(); }
     else {
+      if (brainCol.style.getPropertyValue("--col-tf")) unfoldBrain();
       const y = window.scrollY, vh = window.innerHeight;
       const b = Math.max(1, intro.offsetTop + intro.offsetHeight * 0.6 - vh * 0.5);
       const c = Math.max(b + 1, sections[0].getBoundingClientRect().top + y - vh * 0.5);
@@ -576,6 +658,7 @@ body::after {
   import { mountBrainHero } from "./brain/brain-hero.js";
   const root = document.getElementById("brain");
   const counter = document.getElementById("slice-counter");
+  const mini = document.getElementById("mini-counter");
   const hero = mountBrainHero(root, { dataUrl: "brain/data/" });
   let count = 0, last = 0;
   const apply = () => { if (count) hero.setSlice(count - last * (count - 1)); };
@@ -586,7 +669,7 @@ body::after {
     const show = () => {
       const n = +ticks.getAttribute("aria-valuemax"), v = +ticks.getAttribute("aria-valuenow");
       if (n && !count) { count = n; apply(); }
-      if (n) counter.innerHTML = `${pad(v)}<span>/${n}</span>`;
+      if (n) counter.innerHTML = mini.innerHTML = `${pad(v)}<span>/${n}</span>`;
     };
     new MutationObserver(show).observe(ticks, { attributes: true, attributeFilter: ["aria-valuemax", "aria-valuenow"] });
     show();
