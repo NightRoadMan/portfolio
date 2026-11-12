@@ -253,67 +253,78 @@ body::after {
 }
 
 /* ---------- Narrow ---------- */
-/* handwritten note pointing at the brain: draws in, stays 10 s, fades out */
+/* handwritten note under the brain, arrow up to it: the text writes itself, then the arrow draws;
+   stays 10 s, then fades out */
 .brain-note {
   --r: calc(0.305 * min(100vh, var(--bw)));
   position: absolute; z-index: 4; margin: 0; width: 110px; height: 80px; pointer-events: none;
-  left: calc(var(--bw) * 0.414 - var(--r) * 0.6 - 110px);
-  top: calc(50vh - var(--r) * 0.6 - 80px);
+  left: calc(var(--bw) * 0.414 - var(--r) * 0.72 - 110px);
+  top: calc(50vh + var(--r) * 0.42);
   color: var(--fg); opacity: 0; visibility: hidden;
   transition: opacity 800ms var(--ease), visibility 0s linear 800ms;
 }
-.brain-note.is-on { opacity: 1; visibility: visible; transition: opacity 300ms var(--ease); }
+.brain-note.is-on { opacity: 1; visibility: visible; transition: opacity 200ms var(--ease); }
 .brain-note-text {
-  position: absolute; right: 64px; bottom: calc(100% - 4px); white-space: nowrap;
-  font-family: "Caveat", "Segoe Print", cursive; font-weight: 500; font-size: 26px; line-height: 1;
-  transform: rotate(-4deg); transform-origin: right bottom;
-  opacity: 0; transition: opacity 600ms var(--ease) 150ms;
+  position: absolute; right: calc(100% - 24px); top: calc(100% + 2px); white-space: nowrap;
+  font-family: "Caveat", "Segoe Print", cursive; font-weight: 500; font-size: 26px; line-height: 1.1;
+  transform: rotate(-3deg); transform-origin: right top;
+  clip-path: inset(-20% 100% -20% 0);
 }
-.brain-note-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.brain-note-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: scaleY(-1); }
 .brain-note-arrow path { stroke-dasharray: 1; stroke-dashoffset: 1; }
-.brain-note.is-on .brain-note-text { opacity: 1; }
-.brain-note.is-on .shaft { stroke-dashoffset: 0; transition: stroke-dashoffset 900ms cubic-bezier(.6,.05,.3,1) 500ms; }
-.brain-note.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 260ms ease-out 1400ms; }
+.brain-note.is-on .brain-note-text { clip-path: inset(-20% -5% -20% 0); transition: clip-path 1500ms cubic-bezier(.45,.1,.55,.95) 150ms; }
+.brain-note.is-on .shaft { stroke-dashoffset: 0; transition: stroke-dashoffset 800ms cubic-bezier(.6,.05,.3,1) 1550ms; }
+.brain-note.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 240ms ease-out 2300ms; }
 @media (prefers-reduced-motion: reduce) {
   .brain-note-arrow path { stroke-dashoffset: 0; }
-  .brain-note.is-on .shaft, .brain-note.is-on .head { transition: none; }
+  .brain-note-text { clip-path: none; }
+  .brain-note.is-on .shaft, .brain-note.is-on .head, .brain-note.is-on .brain-note-text { transition: none; }
 }
 
 @media (max-width: 767.98px) {
   /* menu sits at the bottom on phones; the brain band takes the top */
-  :root { --header-h: 0px; --bw: 100vw; --bs: 1; }
-  body::after {
-    inset: auto 0 0; height: calc(env(safe-area-inset-bottom, 0px) + 88px);
-    background: linear-gradient(transparent, var(--bg) 60%);
-  }
+  :root { --header-h: 0px; --bw: 100vw; --bs: 1; --island-gap: #18181b; --island-gap-h: 8px; --island-r: 24px; }
+  /* island layout: the page is grey, the brain and the content sit on it as two rounded dark islands */
+  body { background: var(--island-gap); }
+  body::after { display: none; }
   .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
   .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
   .brain-col {
     z-index: 10; top: env(safe-area-inset-top, 0px); bottom: auto;
     width: 100%; height: 33.333vh; height: 33.333svh;
-    background: var(--bg);
+    background: var(--island-gap);
   }
-  /* no hard edge: the band melts from black into the page below it */
+  #brain { border-radius: var(--island-r); overflow: hidden; background: var(--bg); }
+  /* the 8px gap under the brain island, plus inverted corners so the content island always
+     shows rounded top corners while it scrolls underneath */
   .brain-col::after {
-    content: ""; position: absolute; left: 0; right: 0; top: 100%; height: var(--s-16);
-    background: linear-gradient(var(--bg), transparent); pointer-events: none;
+    content: ""; position: absolute; left: 0; right: 0; top: 100%; height: calc(var(--island-gap-h) + var(--island-r));
+    pointer-events: none;
+    background:
+      linear-gradient(var(--island-gap), var(--island-gap)) top / 100% var(--island-gap-h) no-repeat,
+      radial-gradient(circle at 100% 100%, transparent calc(var(--island-r) - 0.5px), var(--island-gap) var(--island-r)) left bottom / var(--island-r) var(--island-r) no-repeat,
+      radial-gradient(circle at 0 100%, transparent calc(var(--island-r) - 0.5px), var(--island-gap) var(--island-r)) right bottom / var(--island-r) var(--island-r) no-repeat;
   }
   .brain-col::before {
     content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top, 0px);
-    background: var(--bg);
+    background: var(--island-gap);
   }
   #brain { --brain-fit: 1.15; --brain-offset-x: -0.18; --brain-glow: 0.8; }
   /* phone: note under the brain, arrow points up at it */
   .brain-note { left: 22px; top: auto; bottom: 30px; width: 66px; height: 48px; }
-  .brain-note-arrow { transform: scaleY(-1); }
-  .brain-note-text { right: auto; left: 34px; bottom: -24px; font-size: 21px; transform: rotate(-2deg); transform-origin: left bottom; }
-  #brain .bh-scale { top: 50%; transform: translateY(-50%); }
-  #brain .bh-ticks { height: calc(33.333svh - 48px); }
+  .brain-note-text { right: auto; left: 34px; top: auto; bottom: -24px; font-size: 21px; transform: rotate(-2deg); transform-origin: left bottom; }
+  /* timeline scale: pinned to the right edge of the screen, 75% of its height */
+  #brain .bh-scale { position: fixed; top: 50vh; top: 50svh; transform: translateY(-50%); right: max(12px, env(safe-area-inset-right, 0px)); }
+  #brain .bh-ticks { height: 75vh; height: 75svh; }
+  #brain .bh-tick:nth-child(odd of .bh-tick) { display: block; }
   .slice-counter { right: calc(var(--gutter) + 40px); }
   .content {
-    padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
-    padding-top: calc(env(safe-area-inset-top, 0px) + 33.333svh + var(--s-12));
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-24) + 64px);
+    padding-right: calc(max(12px, env(safe-area-inset-right, 0px)) + 44px);  /* clear the timeline scale */
+    margin-top: calc(env(safe-area-inset-top, 0px) + 33.333vh + var(--island-gap-h));
+    margin-top: calc(env(safe-area-inset-top, 0px) + 33.333svh + var(--island-gap-h));
+    padding-top: var(--s-12);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-16) + 64px);
+    background: var(--bg); border-radius: var(--island-r);
   }
   .intro, .work, .about { max-width: none; }
   .intro { min-height: 0; padding-bottom: var(--s-16); }
