@@ -6,7 +6,7 @@
 <title>Портфолио Артема</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Unbounded:wght@300&display=swap">
 <style>
 /* Layout (Scandinavian: one quiet grid, lots of air, type does the work):
    desktop — content on the left, the BrainTM brain fixed on the right; its width goes
@@ -252,6 +252,32 @@ body::after {
 }
 
 /* ---------- Narrow ---------- */
+/* handwritten note pointing at the brain: draws in, stays 10 s, fades out */
+.brain-note {
+  --r: calc(0.305 * min(100vh, var(--bw)));
+  position: absolute; z-index: 4; margin: 0; width: 110px; height: 80px; pointer-events: none;
+  left: calc(var(--bw) * 0.414 - var(--r) * 0.6 - 110px);
+  top: calc(50vh - var(--r) * 0.6 - 80px);
+  color: var(--fg); opacity: 0; visibility: hidden;
+  transition: opacity 800ms var(--ease), visibility 0s linear 800ms;
+}
+.brain-note.is-on { opacity: 1; visibility: visible; transition: opacity 300ms var(--ease); }
+.brain-note-text {
+  position: absolute; right: 64px; bottom: calc(100% - 4px); white-space: nowrap;
+  font-family: "Caveat", "Segoe Print", cursive; font-weight: 500; font-size: 26px; line-height: 1;
+  transform: rotate(-4deg); transform-origin: right bottom;
+  opacity: 0; transition: opacity 600ms var(--ease) 150ms;
+}
+.brain-note-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.brain-note-arrow path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.brain-note.is-on .brain-note-text { opacity: 1; }
+.brain-note.is-on .shaft { stroke-dashoffset: 0; transition: stroke-dashoffset 900ms cubic-bezier(.6,.05,.3,1) 500ms; }
+.brain-note.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 260ms ease-out 1400ms; }
+@media (prefers-reduced-motion: reduce) {
+  .brain-note-arrow path { stroke-dashoffset: 0; }
+  .brain-note.is-on .shaft, .brain-note.is-on .head { transition: none; }
+}
+
 @media (max-width: 767.98px) {
   /* menu sits at the bottom on phones; the brain band takes the top */
   :root { --header-h: 0px; --bw: 100vw; --bs: 1; }
@@ -276,6 +302,10 @@ body::after {
     background: var(--bg);
   }
   #brain { --brain-fit: 1.15; --brain-offset-x: -0.18; --brain-glow: 0.8; }
+  /* phone: note under the brain, arrow points up at it */
+  .brain-note { left: 22px; top: auto; bottom: 30px; width: 66px; height: 48px; }
+  .brain-note-arrow { transform: scaleY(-1); }
+  .brain-note-text { right: auto; left: 34px; bottom: -24px; font-size: 21px; transform: rotate(-2deg); transform-origin: left bottom; }
   #brain .bh-scale { top: 50%; transform: translateY(-50%); }
   #brain .bh-ticks { height: calc(33.333svh - 48px); }
   .slice-counter { right: calc(var(--gutter) + 40px); }
@@ -311,6 +341,13 @@ body::after {
 <aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
   <div id="brain"></div>
   <div class="slice-counter" id="slice-counter" aria-hidden="true"></div>
+  <p class="brain-note" id="brain-note">
+    <span class="brain-note-text">Кстати, это мой настоящий мозг</span>
+    <svg class="brain-note-arrow" viewBox="0 0 110 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path class="shaft" pathLength="1" d="M6 6 C 22 2, 44 6, 58 20 C 72 34, 70 46, 84 58 C 92 65, 99 70, 104 75"/>
+      <path class="head" pathLength="1" d="M90 74 C 95 74.5, 100 75.2, 104.5 75.6 C 103.6 71, 102.6 66.5, 101.4 62"/>
+    </svg>
+  </p>
 </aside>
 
 <main class="content" id="top">
@@ -414,6 +451,13 @@ body::after {
   // Brain size: 1/2 of the screen on the intro → 2/5 once most of the intro has passed → 1/3 on the projects.
   // The canvas keeps its size (resizing WebGL on every frame made it jitter); only a CSS scale is eased.
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  // "Кстати, это мой настоящий мозг": appears once the page settles, goes away after 10 seconds
+  const note = document.getElementById("brain-note");
+  setTimeout(() => {
+    note.classList.add("is-on");
+    setTimeout(() => note.classList.remove("is-on"), 10000);
+  }, 1200);
   // On the projects the brain must fit the free lane between the content column and the scale,
   // so it never covers a cover image. The brain's drawn width is ~0.61 × min(screen height, brain area width)
   // at scale 1, centred at 41.4% of the brain area (measured from the component's render).
