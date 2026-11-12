@@ -308,12 +308,12 @@ body::after {
     z-index: 10; top: 0; bottom: auto; left: 0; right: 0; width: auto;
     height: calc(var(--safe-t) + var(--brain-h));
   }
-  /* the cards scroll only below the header: a grey layer hides everything from the top of the screen down to 8px
-     under the card, and the black card is drawn on top of it (both behind the brain and the ruler) */
+  /* the cards scroll only below the header: a grey layer hides everything behind the header, so its rounded
+     bottom corners always read; the black card is drawn on top of it (both behind the brain and the ruler) */
   .brain-col::before, .brain-col::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; }
-  .brain-col::before { bottom: calc(-1 * var(--island-gap-h)); background: var(--island-gap); }
+  .brain-col::before { bottom: 0; background: var(--island-gap); }  /* grey only behind the rounded corners, no strip below */
   .brain-col::after { bottom: 0; background: var(--bg); border-radius: 0 0 var(--island-r) var(--island-r); }
-  #brain { top: var(--safe-t); bottom: var(--tl-h); }
+  #brain { top: var(--safe-t); bottom: var(--tl-h); height: auto; }  /* the component's .bh sets height:100%, which overrode bottom and ran the canvas over the rounded corners */
   #brain { --brain-fit: 1.2; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.8; }
   #brain .bh-stage { touch-action: none; }
   @media (max-width: 359.98px) { .brain-note { display: none; } }
