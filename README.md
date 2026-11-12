@@ -1,8 +1,6 @@
 # Портфолио, v1
 
-Сайт: https://nightroadman.github.io/portfolio/ (GitHub Pages, ветка `main`, корень).
-
-Одна страница без сборки.
+Одна страница без сборки. Мозг грузится как ES-модуль и тянет данные через fetch,
 поэтому двойной клик по `index.html` не сработает — нужен локальный сервер:
 
 ```bash
@@ -23,6 +21,13 @@ python3 -m http.server 8000
 - В `brain/brain-hero.js` добавлена опция `--brain-fit` (CSS-переменная на `#brain`): какую долю колонки занимает мозг.
   Шкала срезов перенесена вправо, подпись Axial и кнопка Reset скрыты стилями страницы.
 - Если пересобрал BrainTM, замени свой `prototype/src/brain-hero.js` на `brain/brain-hero.src.js` (там та же правка `--brain-fit` в `resize()`), собери, скопируй новый `dist/brain-hero.js` и `data/` сюда.
+
+## Шрифт и логотипы
+
+- Шрифт Medeo (Sans и Mono, SIL Open Font License, `fonts/OFL.txt`) лежит в `fonts/`, подключён через `@font-face`.
+- Логотипы компаний в интро: положи SVG в `logos/` с именами `napopravku.svg`, `syngenta.svg`, `epam.svg`.
+  Пока файла нет, вместо логотипа показывается квадрат с первой буквой.
+- Мозг перекрашен в белый: палитра `C` в `brain/brain-hero.src.js` (в бандле — объект с `dots:"#e9e9e9"`).
 
 ## Шапка
 

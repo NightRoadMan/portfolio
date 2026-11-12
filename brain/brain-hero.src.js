@@ -19,10 +19,10 @@
 import * as THREE from 'three';
 
 /* ------------------------------------------------------------------ look */
-const C = {   // mint theme, base #3DF5B8
-  dots: '#c2fbe6', deep: '#3df5b8', glow: '#19c98f', dust: '#a8f7dc',
-  vessel: 0xdafff2, vesselEmis: 0x3df5b8, vein: 0x8fe0d6, veinEmis: 0x1fb39a,
-  cap: '#cdfbea', capDark: [0.02, 0.14, 0.10], hemi: [0xe6fff6, 0x062a1e], fill: 0x3df5b8, clear: 0x050807,
+const C = {   // white theme (was mint #3DF5B8)
+  dots: '#e9e9e9', deep: '#ffffff', glow: '#8c8c8c', dust: '#cfcfcf',
+  vessel: 0xffffff, vesselEmis: 0xc0c0c0, vein: 0xc8c8c8, veinEmis: 0x707070,
+  cap: '#f2f2f2', capDark: [0.06, 0.06, 0.06], hemi: [0xffffff, 0x111111], fill: 0xcccccc, clear: 0x050807,
   dotsOpacity: 0.7, glowOpacity: 0.05, artOpacity: 0.55, veinOpacity: 0.4, capOpacity: 0.7,
 };
 
