@@ -131,8 +131,9 @@ body::after {
 #brain .bh-handle { box-shadow: none; }
 /* slice counter: detached from the handle, always at the vertical middle of the screen */
 .slice-counter {
-  position: absolute; z-index: 3; top: 50%; transform: translateY(-50%);
-  right: calc(var(--gutter) + 56px);
+  /* sits just above the timeline scale, right-aligned with it */
+  position: absolute; z-index: 3; top: calc(50% - min(28vh, 260px) - 34px);
+  right: var(--gutter);
   font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; pointer-events: none;
   text-shadow: 0 0 6px var(--bg), 0 0 12px var(--bg);
@@ -312,7 +313,7 @@ body::after {
   #brain .bh-scale { position: fixed; top: 50vh; top: 50svh; transform: translateY(-50%); right: max(12px, env(safe-area-inset-right, 0px)); }
   #brain .bh-ticks { height: 60vh; height: 60svh; }
   #brain .bh-tick:nth-child(odd of .bh-tick) { display: block; }
-  .slice-counter { right: calc(var(--gutter) + 40px); }
+  .slice-counter { position: fixed; top: calc(50vh - 30vh - 30px); top: calc(50svh - 30svh - 30px); right: max(12px, env(safe-area-inset-right, 0px)); }
   .content {
     display: grid; gap: var(--island-gap-h);
     padding: calc(env(safe-area-inset-top, 0px) + 33.333vh + var(--s-8)) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
@@ -484,8 +485,10 @@ body::after {
     const d0 = 0.61 * Math.min(vh, colW);
     const gap = parseFloat(getComputedStyle(root).getPropertyValue("--gap")) || 32;
     const left = vw * 2 / 3;  // the brain lane starts at 2/3 of the screen, independent of the content width
-    const cr = counterEl && counterEl.getBoundingClientRect();
-    const right = (cr && cr.width > 0 ? cr.left : cr.right - 48) - gap * 0.5;
+    // right edge of the lane: a little left of the timeline scale (the counter now sits above the scale)
+    const tk = document.querySelector("#brain .bh-ticks");
+    const tr = tk && tk.getBoundingClientRect();
+    const right = (tr && tr.width > 0 ? tr.left : vw - 140) - 30 - gap * 0.5;
     const d = Math.max(80, Math.min(right - left, 0.62 * vh, d0 * 0.8));
     const centre = colL + colW * 0.414;
     return { s: d / d0, x: (left + right) / 2 - centre };
