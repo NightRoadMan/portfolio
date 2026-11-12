@@ -155,12 +155,12 @@ body::after {
 .co { color: var(--fg); font-weight: var(--w-medium); white-space: nowrap; text-decoration: none; transition: opacity 150ms var(--ease); }
 .co:hover { opacity: 0.8; }
 .co-icon {
-  position: relative; display: inline-grid; place-items: center; vertical-align: -0.16em;
+  position: relative; display: inline-block; vertical-align: -0.2em;  /* no in-flow text, so the box sits on the baseline and centres on the capitals */
   width: 1.1em; height: 1.1em; margin-left: 0.3em; border-radius: 0.28em; overflow: hidden;
   background: var(--avatar);
 }
 .co-icon img { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.co-icon b { font-family: var(--font-mono); font-size: 0.6em; font-weight: var(--w-medium); color: var(--fg); }
+.co-icon b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.6em; font-weight: var(--w-medium); color: var(--fg); }
 .facts { display: flex; flex-wrap: wrap; gap: var(--s-4) var(--s-12); margin: 0; padding: 0; list-style: none; }
 .facts li { display: grid; gap: var(--s-1); }
 .facts .k { color: var(--fg-3); }
