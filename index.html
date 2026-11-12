@@ -113,7 +113,7 @@ body::after {
 #brain { position: absolute; inset: 0; --brain-fit: 1.1; --brain-offset-x: -0.12; --brain-offset-y: -0.02; --bh-mono: var(--font-mono); }
 #brain .bh-stage {
   touch-action: pan-y;
-  transform: scale(var(--bs)); transform-origin: 42% 50%; will-change: transform;  /* shrink around the brain itself */
+  transform: translateX(var(--bx, 0px)) scale(var(--bs)); transform-origin: 41.4% 50%; will-change: transform;  /* shrink around the brain itself, then slide into the free lane */
 }
 .brain-col { pointer-events: none; }
 #brain .bh-stage, #brain .bh-scale { pointer-events: auto; }
@@ -156,10 +156,10 @@ body::after {
 .co:hover { opacity: 0.8; }
 .co-icon {
   position: relative; display: inline-grid; place-items: center; vertical-align: -0.16em;
-  width: 1.15em; height: 1.15em; margin-left: 0.3em; border-radius: 0.25em; overflow: hidden;
+  width: 1.1em; height: 1.1em; margin-left: 0.3em; border-radius: 0.28em; overflow: hidden;
   background: var(--avatar);
 }
-.co-icon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.co-icon img { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .co-icon b { font-family: var(--font-mono); font-size: 0.6em; font-weight: var(--w-medium); color: var(--fg); }
 .facts { display: flex; flex-wrap: wrap; gap: var(--s-4) var(--s-12); margin: 0; padding: 0; list-style: none; }
 .facts li { display: grid; gap: var(--s-1); }
@@ -186,7 +186,6 @@ body::after {
 .p-meta .mono { color: var(--fg-3); }
 .p-body { display: grid; gap: var(--s-6); min-width: 0; }
 .p-body h3 { margin: 0; font-size: var(--t-h2); line-height: var(--lh-tight); font-weight: var(--w-regular); letter-spacing: -0.02em; text-wrap: balance; }
-.p-body .lede { margin: 0; color: var(--fg-2); max-width: 58ch; }
 .cover {
   position: relative; margin: var(--s-2) 0 0; aspect-ratio: 16 / 10; max-width: 100%;
   background: var(--surface); border-radius: var(--radius); overflow: hidden;
@@ -197,19 +196,18 @@ body::after {
 }
 .cover-frame.is-phone { inset: 12% 39% -8%; border-radius: 18px 18px 0 0; }
 .cover figcaption { position: absolute; left: var(--s-4); bottom: var(--s-3); color: var(--fg-3); }
-.p-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-6); margin: var(--s-2) 0 0; }
-.p-facts div { display: grid; gap: var(--s-1); min-width: 0; }
-.p-facts dt { color: var(--fg-3); text-transform: lowercase; }
-.p-facts dd { margin: 0; font-size: var(--t-secondary); }
-.p-facts dd.metric { font-size: var(--t-h3); line-height: var(--lh-tight); font-variant-numeric: tabular-nums; }
-.case-link {
-  justify-self: start; display: inline-flex; align-items: center; gap: var(--s-2); min-height: 44px;
-  font-size: var(--t-secondary); color: var(--fg); border-bottom: 1px solid transparent;
-  transition: color 150ms var(--ease);
-}
-.case-link span { transition: transform 150ms var(--ease); }
-.case-link:hover span { transform: translateX(4px); }
-.case-link.is-soon { color: var(--fg-3); pointer-events: none; }
+.p-achievements { display: grid; gap: var(--s-4); margin-top: var(--s-4); }
+.p-achievements h4 { margin: 0; font-size: var(--t-h3); line-height: var(--lh-tight); font-weight: var(--w-regular); color: var(--fg); }
+.p-achievements ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-3); max-width: 62ch; }
+.p-achievements li { position: relative; padding-left: 1.25em; color: var(--fg-2); }
+.p-achievements li::before { content: ""; position: absolute; left: 0.3em; top: 0.68em; width: 5px; height: 5px; border-radius: 50%; background: var(--fg-2); }
+.p-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-6); margin: var(--s-6) 0 0; }
+.p-facts div { display: grid; gap: var(--s-2); min-width: 0; align-content: start; }
+.p-facts dt { font-size: var(--t-meta); font-weight: var(--w-medium, 500); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-3); }
+.p-facts dd { margin: 0; color: var(--fg); }
+.p-link { color: var(--fg); text-decoration: none; border-bottom: 1px solid var(--line-strong); transition: border-color 150ms var(--ease); }
+.p-link:hover { border-color: var(--fg); }
+.p-soon { color: var(--fg-3); }
 
 /* about / contact */
 .about { display: grid; gap: var(--s-8); padding-top: var(--s-8); }
@@ -292,7 +290,7 @@ body::after {
   <section class="intro" aria-labelledby="intro-title">
     <p class="eyebrow mono">продуктовый дизайнер</p>
     <h1 id="intro-title">Привет! Меня зовут Артём</h1>
-    <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngenta.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
+    <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
   </section>
 
   <section class="work" id="work" aria-labelledby="work-title">
@@ -330,30 +328,22 @@ body::after {
 <script>
 (function () {
   const projects = [
-    { id: "polosa-business", year: 2026, period: "2025 — сейчас", title: "Банк для малого бизнеса", company: "Полоса", kind: "Мобильное приложение", device: "phone",
-      lede: "Пересобрал главный экран и платежи для предпринимателей, которые заходят в банк на две минуты между делами. Убрали шесть экранов из сценария оплаты счёта.",
-      role: "Ведущий дизайнер", team: "2 дизайнера, 9 разработчиков", metric: "−38%", metricLabel: "время оплаты счёта", case: true },
-    { id: "polosa-ds", year: 2025, period: "2024 — 2025", title: "Дизайн-система «Грань»", company: "Полоса", kind: "Дизайн-система",
-      lede: "Одна система для веба, iOS и Android: токены, 64 компонента, документация и процесс приёма изменений от продуктовых команд.",
-      role: "Автор и мейнтейнер", team: "3 дизайнера, 4 разработчика", metric: "11", metricLabel: "команд на системе", case: true },
-    { id: "clinic-booking", year: 2024, period: "2023 — 2024", title: "Запись к врачу за три шага", company: "Здравица", kind: "Веб-сервис",
-      lede: "Сервис записи для сети клиник. Исследовали, почему пациенты бросают запись на выборе времени, и перепроектировали этот шаг вокруг ближайших свободных окон.",
-      role: "Продуктовый дизайнер", team: "1 дизайнер, 1 исследователь, 6 разработчиков", metric: "+21%", metricLabel: "завершённых записей", case: true },
-    { id: "clinic-doctor", year: 2023, period: "2023", title: "Кабинет врача", company: "Здравица", kind: "Внутренний инструмент",
-      lede: "Рабочее место врача на приёме: расписание дня, карта пациента и назначения на одном экране вместо трёх вкладок старой системы.",
-      role: "Продуктовый дизайнер", team: "1 дизайнер, 5 разработчиков", metric: "4 мин", metricLabel: "экономия на приёме", case: false },
-    { id: "logist-analytics", year: 2022, period: "2021 — 2022", title: "Аналитика для логистов", company: "Маршрут", kind: "B2B, дашборды",
-      lede: "Панель для диспетчеров грузоперевозок: где машины, кто опаздывает и почему. Главная сложность была в плотности данных без потери читаемости.",
-      role: "Продуктовый дизайнер", team: "2 дизайнера, 7 разработчиков", metric: "320", metricLabel: "компаний-клиентов", case: true },
-    { id: "logist-onboarding", year: 2021, period: "2021", title: "Онбординг перевозчиков", company: "Маршрут", kind: "Веб, формы",
-      lede: "Регистрация перевозчика с проверкой документов. Разбили длинную анкету на шаги и сделали сохранение черновика, чтобы можно было вернуться позже.",
-      role: "Дизайнер", team: "1 дизайнер, 3 разработчика", metric: "2×", metricLabel: "больше завершённых анкет", case: false },
-    { id: "food-delivery", year: 2020, period: "2019 — 2020", title: "Доставка из фермерских лавок", company: "Грядка", kind: "Мобильное приложение", device: "phone",
-      lede: "Первый продукт, который я вёл целиком: от интервью с фермерами до запуска в сторах. Каталог, корзина, слоты доставки.",
-      role: "Единственный дизайнер", team: "4 разработчика", metric: "4,8", metricLabel: "рейтинг в App Store", case: false },
-    { id: "studio-sites", year: 2018, period: "2017 — 2019", title: "Сайты для студии", company: "Студия «Контур»", kind: "Веб, лендинги",
-      lede: "Около тридцати сайтов для малого бизнеса. Здесь я научился работать с клиентом, сроками и вёрсткой, и понял, что хочу заниматься продуктом.",
-      role: "Веб-дизайнер", team: "Студия из 6 человек", metric: "~30", metricLabel: "запущенных сайтов", case: false }
+    { id: "polosa-business", year: 2026, period: "2025 — сейчас", title: "Банк для малого бизнеса", company: "Полоса", device: "phone", platforms: "iOS, Android", link: "",
+      achievements: ["Пересобрал главный экран под три частых сценария предпринимателя: оплатить счёт, проверить поступления, выставить счёт.", "Убрал шесть экранов из сценария оплаты счёта, время оплаты сократилось на 38%.", "Провёл 14 интервью с клиентами и выстроил вместе с продактом бэклог гипотез на полгода."] },
+    { id: "polosa-ds", year: 2025, period: "2024 — 2025", title: "Дизайн-система «Грань»", company: "Полоса", platforms: "Web, iOS, Android", link: "",
+      achievements: ["Собрал единую систему для трёх платформ: токены, 64 компонента и документацию.", "Настроил процесс приёма изменений от продуктовых команд и ревью компонентов вместе с разработкой.", "Перевёл на систему 11 продуктовых команд, время сборки нового экрана сократилось вдвое."] },
+    { id: "clinic-booking", year: 2024, period: "2023 — 2024", title: "Запись к врачу за три шага", company: "Здравица", platforms: "Web", link: "",
+      achievements: ["Исследовал, почему пациенты бросают запись на выборе времени: аналитика воронки и 10 юзабилити-тестов.", "Перепроектировал шаг выбора времени вокруг ближайших свободных окон.", "Доля завершённых записей выросла на 21%."] },
+    { id: "clinic-doctor", year: 2023, period: "2023", title: "Кабинет врача", company: "Здравица", platforms: "Web, планшет", link: "",
+      achievements: ["Собрал рабочее место врача на приёме: расписание, карта пациента и назначения на одном экране.", "Провёл наблюдения за приёмами в двух клиниках и выделил лишние действия врача.", "Экономия около 4 минут на каждом приёме."] },
+    { id: "logist-analytics", year: 2022, period: "2021 — 2022", title: "Аналитика для логистов", company: "Маршрут", platforms: "Web", link: "",
+      achievements: ["Спроектировал панель диспетчера: где машины, кто опаздывает и почему.", "Разработал систему плотных таблиц и графиков, которая остаётся читаемой при сотнях строк.", "Продукт вырос до 320 компаний-клиентов."] },
+    { id: "logist-onboarding", year: 2021, period: "2021", title: "Онбординг перевозчиков", company: "Маршрут", platforms: "Web", link: "",
+      achievements: ["Разбил длинную анкету регистрации на шаги с проверкой документов.", "Добавил сохранение черновика, чтобы к анкете можно было вернуться позже.", "Завершённых анкет стало в два раза больше."] },
+    { id: "food-delivery", year: 2020, period: "2019 — 2020", title: "Доставка из фермерских лавок", company: "Грядка", device: "phone", platforms: "iOS, Android", link: "",
+      achievements: ["Вёл продукт целиком: от интервью с фермерами до запуска в сторах.", "Спроектировал каталог, корзину и выбор слотов доставки.", "Рейтинг приложения в App Store 4,8."] },
+    { id: "studio-sites", year: 2018, period: "2017 — 2019", title: "Сайты для студии", company: "Студия «Контур»", platforms: "Web", link: "",
+      achievements: ["Сделал около тридцати сайтов и лендингов для малого бизнеса.", "Научился работать с клиентом, сроками и вёрсткой.", "Понял, что хочу заниматься продуктом."] }
   ];
 
   const total = projects.length;
@@ -369,19 +359,21 @@ body::after {
       </div>
       <div class="p-body">
         <h3 id="t-${p.id}">${esc(p.title)}</h3>
-        <p class="lede">${esc(p.lede)}</p>
         <figure class="cover">
           <div class="cover-frame${p.device === "phone" ? " is-phone" : ""}"></div>
-          <figcaption class="mono">${esc(p.kind.toLowerCase())} · обложка 1600 × 1000</figcaption>
+          <figcaption class="mono">обложка 1600 × 1000</figcaption>
         </figure>
+        <div class="p-achievements">
+          <h4>Достижения и вклад</h4>
+          <ul>${p.achievements.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+        </div>
         <dl class="p-facts">
-          <div><dt class="mono">роль</dt><dd>${esc(p.role)}</dd></div>
-          <div><dt class="mono">команда</dt><dd>${esc(p.team)}</dd></div>
-          <div><dt class="mono">${esc(p.metricLabel)}</dt><dd class="metric">${esc(p.metric)}</dd></div>
+          <div><dt>года</dt><dd>${esc(p.period)}</dd></div>
+          <div><dt>платформы</dt><dd>${esc(p.platforms)}</dd></div>
+          <div><dt>посмотреть</dt><dd>${p.link
+            ? `<a class="p-link" href="https://${esc(p.link)}" target="_blank" rel="noopener">${esc(p.link)}<span aria-hidden="true"> ↗</span></a>`
+            : `<span class="p-soon">ссылка появится</span>`}</dd></div>
         </dl>
-        ${p.case
-          ? `<a class="case-link" href="#${p.id}">открыть кейс <span aria-hidden="true">→</span></a>`
-          : `<span class="case-link is-soon">кейс готовится</span>`}
       </div>
     </article>`).join("");
 
@@ -395,23 +387,44 @@ body::after {
   // Brain size: 1/2 of the screen on the intro → 2/5 once most of the intro has passed → 1/3 on the projects.
   // The canvas keeps its size (resizing WebGL on every frame made it jitter); only a CSS scale is eased.
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-  let bsTarget = 1, bsNow = 1, bsRaf = 0;
+  // On the projects the brain must fit the free lane between the content column and the scale,
+  // so it never covers a cover image. The brain's drawn width is ~0.61 × min(screen height, brain area width)
+  // at scale 1, centred at 41.4% of the brain area (measured from the component's render).
+  const brainCol = document.querySelector(".brain-col");
+  const work = document.querySelector(".work");
+  const counterEl = document.querySelector(".slice-counter");
+  let bsTarget = 1, bsNow = 1, bxTarget = 0, bxNow = 0, bsRaf = 0;
+  function laneFit() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const colW = brainCol.clientWidth, colL = vw - colW;
+    const d0 = 0.61 * Math.min(vh, colW);
+    const gap = parseFloat(getComputedStyle(root).getPropertyValue("--gap")) || 32;
+    const left = work.getBoundingClientRect().right + gap;
+    const cr = counterEl && counterEl.getBoundingClientRect();
+    const right = (cr && cr.width > 0 ? cr.left : cr.right - 48) - gap * 0.5;
+    const d = Math.max(80, Math.min(right - left, 0.62 * vh, d0 * 0.8));
+    const centre = colL + colW * 0.414;
+    return { s: d / d0, x: (left + right) / 2 - centre };
+  }
   function brainWidth() {
-    if (!wide.matches) { bsTarget = 1; }
+    if (!wide.matches) { bsTarget = 1; bxTarget = 0; }
     else {
       const y = window.scrollY, vh = window.innerHeight;
       const b = Math.max(1, intro.offsetTop + intro.offsetHeight * 0.6 - vh * 0.5);
       const c = Math.max(b + 1, sections[0].getBoundingClientRect().top + y - vh * 0.5);
-      const w = y <= b ? lerp(50, 40, y / b) : lerp(40, 100 / 3, (y - b) / (c - b));
-      bsTarget = w / 50;
+      const fit = laneFit();
+      if (y <= b) { bsTarget = lerp(1, 0.8, y / b); bxTarget = 0; }
+      else { const t = (y - b) / (c - b); bsTarget = lerp(0.8, fit.s, t); bxTarget = lerp(0, fit.x, t); }
     }
     if (!bsRaf) bsRaf = requestAnimationFrame(easeScale);
   }
   function easeScale() {
-    bsNow = reduce.matches ? bsTarget : bsNow + (bsTarget - bsNow) * 0.12;
-    if (Math.abs(bsTarget - bsNow) < 0.0005) bsNow = bsTarget;
+    const k = reduce.matches ? 1 : 0.12;
+    bsNow += (bsTarget - bsNow) * k; bxNow += (bxTarget - bxNow) * k;
+    if (Math.abs(bsTarget - bsNow) < 0.0005 && Math.abs(bxTarget - bxNow) < 0.3) { bsNow = bsTarget; bxNow = bxTarget; }
     root.style.setProperty("--bs", bsNow.toFixed(4));
-    bsRaf = bsNow === bsTarget ? 0 : requestAnimationFrame(easeScale);
+    root.style.setProperty("--bx", bxNow.toFixed(1) + "px");
+    bsRaf = bsNow === bsTarget && bxNow === bxTarget ? 0 : requestAnimationFrame(easeScale);
   }
 
 

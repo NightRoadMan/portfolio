@@ -25,8 +25,7 @@ python3 -m http.server 8000
 ## Шрифт и логотипы
 
 - Шрифт Medeo (Sans и Mono, SIL Open Font License, `fonts/OFL.txt`) лежит в `fonts/`, подключён через `@font-face`.
-- Логотипы компаний в интро: положи SVG в `logos/` с именами `napopravku.svg`, `syngenta.svg`, `epam.svg`.
-  Пока файла нет, вместо логотипа показывается квадрат с первой буквой.
+- Логотипы компаний в интро — `logos/napopravku.svg`, `syngenta.svg`, `epam.svg` (из Figma-файла Vibes). Если файла нет, показывается квадрат с первой буквой.
 
 ## Размер мозга
 
