@@ -350,6 +350,13 @@ body::after {
     padding: var(--s-8) var(--gutter);
   }
   .intro { min-height: 0; }
+  /* every project is its own island; the section label sits on the first one */
+  .work { display: grid; gap: 0; padding: 0; background: none; border-radius: 0; }
+  #work-list { display: grid; gap: var(--island-gap-h); }
+  .work > .label { padding: var(--s-8) var(--gutter) 0; background: var(--bg); border-radius: var(--island-r) var(--island-r) 0 0; }
+  #work-list > .project:first-child { border-top-left-radius: 0; border-top-right-radius: 0; }
+  .project { background: var(--bg); border-radius: var(--island-r); padding: var(--s-8) var(--gutter) !important; }
+  .project + .project { border-top: 0; }
   .work > .label, .about > .label { padding-top: 0; border-top: 0; }
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .project { padding-block: var(--s-8) var(--s-16); scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--brain-h) + var(--s-6)); }
