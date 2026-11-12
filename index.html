@@ -302,24 +302,27 @@ body::after {
   :root { --brain-h: 184px; --tl-h: 40px; }
   .brain-col {
     z-index: 10; top: calc(env(safe-area-inset-top, 0px) + var(--island-gap-h)); bottom: auto;
-    left: var(--island-gap-h); right: var(--island-gap-h); width: auto; height: var(--brain-h);
+    left: 0; right: 0; width: auto; height: var(--brain-h);  /* full width, like the other cards */
     background: var(--bg); border-radius: var(--island-r); overflow: hidden;
-    box-shadow: 0 0 0 var(--island-gap-h) var(--island-gap);  /* grey frame above and beside it, so content scrolls under cleanly */
+    box-shadow: 0 0 0 var(--island-gap-h) var(--island-gap), 0 calc(-1 * env(safe-area-inset-top, 0px)) 0 var(--island-gap-h) var(--island-gap);  /* grey 8px around it (and up to the notch), so cards scroll under cleanly */
   }
   .brain-col::before {  /* fills the notch / status bar strip above the island */
     content: ""; position: fixed; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + var(--island-gap-h));
     background: var(--island-gap);
   }
-  #brain { bottom: var(--tl-h); --brain-fit: 1.2; --brain-offset-x: 0.42; --brain-offset-y: 0; --brain-glow: 0.8; }
+  #brain { bottom: var(--tl-h); --brain-fit: 1.2; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.8; }
   #brain .bh-stage { touch-action: none; }
-  @media (max-width: 359.98px) { #brain { --brain-offset-x: 0.22; } .brain-note-text { font-size: 17px; } }  /* the finger belongs to the brain here: rotate both ways, no scroll hijack */
+  @media (max-width: 359.98px) { .brain-note { display: none; } }
+  /* the canvas clear colour can come out a shade off the CSS colour on some phones; lighten keeps the island
+     exactly the card colour and only lets the brain's light points through */
+  #brain canvas { mix-blend-mode: lighten; }  /* the finger belongs to the brain here: rotate both ways, no scroll hijack */
   #brain .bh-scale, .slice-counter { display: none; }
   /* note on the left of the island, arrow points right at the brain */
   .brain-note { left: 16px; top: 18px; bottom: auto; width: 46px; height: 34px; }
   .brain-note .brain-note-arrow { transform: none; }
   .brain-note-text {
     right: auto; left: 0; top: calc(100% + 4px); bottom: auto; width: 9.5em; white-space: normal;
-    font-size: 19px; line-height: 1.05; transform: rotate(-3deg); transform-origin: left top;
+    font-size: 17px; line-height: 1.05; transform: rotate(-3deg); transform-origin: left top;
   }
   /* timeline: a horizontal ruler across the bottom of the island; drag it to scroll the page */
   .tl {
@@ -328,7 +331,7 @@ body::after {
     touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none;
   }
   .tl.is-dragging { cursor: grabbing; }
-  .tl-n { flex: none; width: 5ch; font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .tl-n { display: none; flex: none; width: 5ch; font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--fg); }
   .tl-n span { color: var(--fg-3); }
   .tl-track { position: relative; flex: 1; height: 100%; }
   .tl-ticks { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; }
