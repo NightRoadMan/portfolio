@@ -343,8 +343,8 @@ body::after {
     </a>
     <nav class="nav" aria-label="разделы">
       <a href="#work" data-nav="work">проекты</a>
-      <a href="#about" data-nav="about">карьера</a>
-      <a href="#contact" data-nav="contact">связь со мной</a>
+      <a href="#about" data-nav="about">обо мне</a>
+      <a href="resume.pdf" download="artem-resume.pdf">резюме</a>
     </nav>
     <span class="nav-indicator" id="nav-indicator" aria-hidden="true"></span>
   </div>
@@ -375,9 +375,9 @@ body::after {
   </section>
 
   <section class="about" id="about" aria-labelledby="about-title">
-    <h2 class="label" id="about-title"><span>карьера</span><span>2017 — 2026</span></h2>
+    <h2 class="label" id="about-title"><span>обо мне</span><span>2017 — 2026</span></h2>
     <div class="cols">
-      <div class="mono faint">обо мне</div>
+      <div class="mono faint">карьера</div>
       <div class="text">
         <p><strong>Начинал с интерфейсов для небольших студий, потом ушёл в продуктовые команды.</strong> Работаю на стыке исследований и интерфейса: сначала разбираюсь, где пользователь теряется, потом проектирую так, чтобы это место исчезло. Люблю системы, которые переживают смену команды.</p>
         <p>Инструменты: Figma, FigJam, Protopie, немного кода на фронтенде. Провожу интервью и юзабилити-тесты сам, без отдельного исследователя.</p>
@@ -389,7 +389,7 @@ body::after {
         <li><button class="contact" type="button" data-copy="hello@example.com">hello@example.com <span class="faint">скопировать</span></button></li>
         <li><a class="contact" href="https://t.me/" target="_blank" rel="noopener">Telegram <span class="faint">@artem ↗</span></a></li>
         <li><a class="contact" href="https://www.linkedin.com/" target="_blank" rel="noopener">LinkedIn <span class="faint">↗</span></a></li>
-        <li><a class="contact" href="#" aria-disabled="true">Резюме, PDF <span class="faint">скоро</span></a></li>
+        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf">Резюме, PDF <span class="faint">скачать ↓</span></a></li>
       </ul>
     </div>
     <div class="foot mono">
@@ -538,7 +538,7 @@ body::after {
   function setNav(line) {
     const atBottom = window.scrollY + window.innerHeight >= root.scrollHeight - 4;
     const topOf = (id) => document.getElementById(id).getBoundingClientRect().top;
-    const key = atBottom ? "contact" : topOf("about") <= line ? "about" : topOf("work") <= line ? "work" : "top";
+    const key = atBottom || topOf("about") <= line ? "about" : topOf("work") <= line ? "work" : "top";
     if (key === navKey) return;
     navKey = key;
     navItems.forEach((a) => a.dataset.nav === key ? a.setAttribute("aria-current", "true") : a.removeAttribute("aria-current"));
