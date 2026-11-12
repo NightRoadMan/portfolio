@@ -371,15 +371,15 @@ export function mountBrainHero(root, opts = {}) {
     fx.uPointer.value.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
     S.pointerOn = 1; S.pointerIdle = 0;
   };
-  const onDown = e => { S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; setPointer(e); };
+  const onDown = e => { S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
   const onMove = e => {
     setPointer(e);
     if (!S.dragging) return;
     const dx = e.clientX - S.lastX, dy = e.clientY - S.lastY, now = performance.now(), dt = Math.max(now - S.lastT, 1) / 1000;
-    S.yaw += dx * K; S.targetPitch = THREE.MathUtils.clamp(S.targetPitch + dy * K * 0.6, -1.2, 1.2); S.vel = dx * K / dt;
+    S.yaw += dx * K; S.targetPitch = THREE.MathUtils.clamp(S.targetPitch + dy * K * 0.6, -1.2, 1.2); S.vel = THREE.MathUtils.clamp(S.vel * 0.55 + dx * K / dt * 0.45, -14, 14);  // smoothed fling, not the last event's raw dx/dt
     S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = now;
   };
-  const onUp = () => { if (S.dragging) { S.dragging = false; el.stage.classList.remove('dragging'); S.idle = 0; } };
+  const onUp = () => { if (S.dragging) { S.dragging = false; el.stage.classList.remove('dragging'); S.idle = 0; if (performance.now() - S.lastT > 90) S.vel = 0; } };  // a pause before release stops the fling
   const onLeave = () => { S.pointerOn = 0; };
   const onKey = e => { if (e.key === 'ArrowLeft') S.yaw -= 0.15; if (e.key === 'ArrowRight') S.yaw += 0.15; };
   el.stage.addEventListener('pointerdown', onDown); el.stage.addEventListener('pointermove', onMove);
