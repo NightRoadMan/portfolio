@@ -314,8 +314,8 @@ export function mountBrainHero(root, opts = {}) {
       g.setAttribute('position', new THREE.BufferAttribute(pts.pos, 3));
       g.setAttribute('aVal', new THREE.BufferAttribute(pts.val, 1));
       g.setAttribute('aDeep', new THREE.BufferAttribute(pts.deep, 1));
-      const u = { ...fx, uSize: { value: sz }, uClipZ: { value: 10 }, uPixelRatio: { value: renderer.getPixelRatio() },
-                  uColor: { value: new THREE.Color(color) }, uColorDeep: { value: new THREE.Color(deepColor) }, uOpacity: { value: opacity } };
+      const u = { ...fx, uSize: { value: sz }, uClipZ: { value: 10 }, uPixelRatio: { value: renderer.getPixelRatio() * (renderer._bhK || 1) },
+                  uColor: { value: new THREE.Color(color) }, uColorDeep: { value: new THREE.Color(deepColor) }, uOpacity: { value: opacity * (renderer._bhG ?? 1) }, _o: opacity };
       const m = new THREE.Points(g, new THREE.ShaderMaterial({ vertexShader: ptVert, fragmentShader: ptFrag, uniforms: u, transparent: true, depthWrite: false, depthTest: clipped, blending: THREE.AdditiveBlending }));
       m.renderOrder = order; if (clipped) layers.push(u); return m;
     };
@@ -356,7 +356,11 @@ export function mountBrainHero(root, opts = {}) {
     const fit = parseFloat(cs.getPropertyValue('--brain-fit'));
     camera.position.set(0, 0, fit > 0 ? 0.75 / (Math.tan(Math.PI / 12) * Math.min(1, w / h)) / fit : (h > w ? 5.2 : 3.3)); camera.lookAt(0, 0, 0);
     tilt.position.set(parseFloat(cs.getPropertyValue('--brain-offset-x')) || 0, parseFloat(cs.getPropertyValue('--brain-offset-y')) || 0, 0);
-    for (const u of layers) u.uPixelRatio.value = renderer.getPixelRatio();
+    // points have a fixed pixel size, so a small canvas packs them densely and the additive blend burns to white:
+    // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
+    renderer._bhK = Math.min(1, Math.max(0.35, Math.min(w, h) / 720));
+    const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
+    for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
   }
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
 

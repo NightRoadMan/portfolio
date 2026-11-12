@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Портфолио Артема</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300&display=swap">
 <style>
 /* Layout (Scandinavian: one quiet grid, lots of air, type does the work):
    desktop — content on the left, the BrainTM brain fixed on the right; its width goes
@@ -19,6 +22,7 @@
   --surface: #101211;
   --capsule: #1c1c1e;
   --capsule-line: rgba(255, 255, 255, 0.12);
+  --accent: #3df5af;                   /* brain mint: only the active menu item uses it */
   --avatar: #3a3a3c;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.16);
@@ -75,10 +79,11 @@ a { color: inherit; text-decoration: none; }
   position: relative;
   display: flex; align-items: center; gap: var(--s-6);
   height: 44px; padding: 0 var(--s-6) 0 var(--s-1);
-  background: var(--capsule);
-  border: 1px solid var(--capsule-line);
+  background: rgba(34, 34, 37, 0.8);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
   text-transform: lowercase;
 }
 .avatar-link { display: inline-flex; border-radius: 50%; }
@@ -86,13 +91,14 @@ a { color: inherit; text-decoration: none; }
 .nav { display: flex; gap: var(--s-6); }
 .nav a {
   display: inline-flex; align-items: center; min-height: 44px;
-  color: var(--fg-2); font-size: var(--t-secondary); line-height: 1; white-space: nowrap;
+  color: #a1a1aa; font-size: var(--t-secondary); font-weight: var(--w-medium); line-height: 1; white-space: nowrap;
   transition: color 150ms var(--ease);
 }
-.nav a:hover, .nav a[aria-current="true"] { color: var(--fg); }
+.nav a:hover { color: var(--fg); }
+.nav a[aria-current="true"] { color: var(--accent); }
 .nav-indicator {
   position: absolute; bottom: -1px; left: 0; height: 1.5px; width: 32px;
-  background: linear-gradient(90deg, transparent, var(--fg) 30%, var(--fg) 70%, transparent);
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
   border-radius: 2px; pointer-events: none;
   transition: transform 240ms var(--ease), width 240ms var(--ease);
 }
@@ -146,9 +152,15 @@ body::after {
 .intro { display: grid; gap: var(--s-8); min-height: calc(100vh - var(--header-h) - var(--s-24) - var(--s-24)); align-content: center; padding-bottom: var(--s-24); }
 .eyebrow { color: var(--fg-3); }
 .intro h1 {
-  margin: 0; font-size: var(--t-h1); line-height: var(--lh-tight);
-  font-weight: var(--w-regular); letter-spacing: -0.025em; text-wrap: balance;
+  /* wide grotesque, light; one line on desktop with the photo badge in the middle */
+  margin: 0; font-family: "Unbounded", var(--font-sans); font-weight: 300;
+  font-size: clamp(1.5rem, 2.05vw, 2.75rem); line-height: 1.3; letter-spacing: -0.01em;
 }
+.intro h1 .nw { white-space: nowrap; }
+.hello-badge {
+  display: inline-block; width: 2.85em; height: 2.85em; margin: -0.75em 0.15em; vertical-align: middle;
+}
+.hello-badge img { display: block; width: 100%; height: 100%; }
 .intro p { margin: 0; max-width: 52ch; color: var(--fg-2); }
 .intro .bio { font-size: var(--t-h3); line-height: 1.55; max-width: 44ch; }
 /* company names: white, a touch heavier, favicon after the name (logos/<slug>.svg, letter fallback) */
@@ -241,21 +253,36 @@ body::after {
 
 /* ---------- Narrow ---------- */
 @media (max-width: 767.98px) {
-  :root { --header-h: 68px; --bw: 100vw; --bs: 1; }
-  body::after { background: var(--bg); }
-  .topbar { top: calc(env(safe-area-inset-top, 0px) + var(--s-3)); }
-  .brain-col {
-    z-index: 10; top: calc(env(safe-area-inset-top, 0px) + var(--header-h)); bottom: auto;
-    width: 100%; height: 33.333vh; height: 33.333svh;
-    background: var(--bg); border-bottom: 1px solid var(--line);
+  /* menu sits at the bottom on phones; the brain band takes the top */
+  :root { --header-h: 0px; --bw: 100vw; --bs: 1; }
+  body::after {
+    inset: auto 0 0; height: calc(env(safe-area-inset-bottom, 0px) + 88px);
+    background: linear-gradient(transparent, var(--bg) 60%);
   }
-  #brain { --brain-fit: 1.15; --brain-offset-x: -0.18; }
+  .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
+  .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
+  .brain-col {
+    z-index: 10; top: env(safe-area-inset-top, 0px); bottom: auto;
+    width: 100%; height: 33.333vh; height: 33.333svh;
+    background: var(--bg);
+  }
+  /* no hard edge: the band melts from black into the page below it */
+  .brain-col::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 100%; height: var(--s-16);
+    background: linear-gradient(var(--bg), transparent); pointer-events: none;
+  }
+  .brain-col::before {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: env(safe-area-inset-top, 0px);
+    background: var(--bg);
+  }
+  #brain { --brain-fit: 1.15; --brain-offset-x: -0.18; --brain-glow: 0.8; }
   #brain .bh-scale { top: 50%; transform: translateY(-50%); }
   #brain .bh-ticks { height: calc(33.333svh - 48px); }
   .slice-counter { right: calc(var(--gutter) + 40px); }
   .content {
     padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
-    padding-top: calc(env(safe-area-inset-top, 0px) + var(--header-h) + 33.333svh + var(--s-12));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 33.333svh + var(--s-12));
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-24) + 64px);
   }
   .intro, .work, .about { max-width: none; }
   .intro { min-height: 0; padding-bottom: var(--s-16); }
@@ -289,7 +316,7 @@ body::after {
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
     <p class="eyebrow mono">продуктовый дизайнер</p>
-    <h1 id="intro-title">Привет! Меня зовут Артём</h1>
+    <h1 id="intro-title"><span class="nw">Привет! Меня</span> <span class="hello-badge" aria-hidden="true"><img src="hello-badge.png" alt="" width="240" height="240"></span> <span class="nw">зовут Артём</span></h1>
     <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
   </section>
 
