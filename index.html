@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Портфолио Артема</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: chronological project column on the left, sticky BrainTM brain on the right (desktop);
+   the brain becomes a sticky band under the top bar on narrow. Page is black / white / greys. */
+:root {
+  color-scheme: dark;
+  /* colour: L0 canvas, L1 surface, hairlines, three text greys; "accent" is white */
+  --bg: #050807; /* = BrainTM canvas clear colour */
+  --surface: #121212;
+  --surface-2: #181818;
+  --capsule: #1c1c1e;
+  --capsule-line: rgba(255, 255, 255, 0.12);
+  --avatar: #3a3a3c;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --fg: #f2f2f2;
+  --fg-2: #a6a6a6;
+  --fg-3: #858585;
+
+  /* type: Geist for text, Geist Mono for dates, periods and meta */
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --w-regular: 400; --w-medium: 500; --w-semibold: 600;
+  --t-meta: 0.75rem; --t-secondary: 0.875rem; --t-body: 1rem;
+  /* fluid headings: scale with the viewport between the phone and wide-screen steps */
+  --t-h3: clamp(1.125rem, 1rem + 0.35vw, 1.44rem);
+  --t-h2: clamp(1.44rem, 1.1rem + 1vw, 2.25rem);
+  --t-h1: clamp(2rem, 1.2rem + 2.4vw, 3.6rem);
+  --lh-tight: 1.2; --lh-body: 1.55; --lh-meta: 1.4;
+
+  /* spacing: 4 / 8pt */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-6: 24px;
+  --s-8: 32px; --s-12: 48px; --s-16: 64px; --s-24: 96px;
+
+  --gutter: clamp(16px, 3vw, 56px);
+  --brain-w: 33.333vw; /* the brain column is one third of the screen */
+  --header-h: 96px; /* 16 + 64 capsule + 16 */
+  --radius: 4px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  font-weight: var(--w-regular);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg);
+}
+
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; border-radius: 2px; }
+
+.mono { font-family: var(--font-mono); font-size: var(--t-meta); line-height: var(--lh-meta); letter-spacing: 0.02em; }
+.muted { color: var(--fg-2); }
+.faint { color: var(--fg-3); }
+
+.gutter {
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+/* ---------- Top bar: floating capsule ---------- */
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--bg);
+  padding-block: var(--s-4);
+}
+.topbar-inner { width: 100%; }
+.capsule {
+  position: relative;
+  display: flex; align-items: center; gap: var(--s-8);
+  width: 100%; max-width: clamp(480px, 36vw, 640px); height: 64px;
+  padding: 0 var(--s-8) 0 var(--s-2);
+  background: var(--capsule);
+  border: 1px solid var(--capsule-line);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.avatar {
+  flex: none; display: block; width: 48px; height: 48px; border-radius: 50%;
+  background: var(--avatar);
+  object-fit: cover;
+}
+.avatar-link { display: inline-flex; border-radius: 50%; }
+.nav { flex: 1; display: flex; justify-content: space-between; gap: var(--s-4); }
+.nav a {
+  display: inline-flex; align-items: center; min-height: 44px;
+  color: var(--fg-2); font-size: var(--t-h3); line-height: var(--lh-tight); white-space: nowrap;
+  transition: color 150ms var(--ease);
+}
+.nav a:hover, .nav a[aria-current="true"] { color: var(--fg); }
+/* active-item indicator: a light stroke on the capsule's bottom edge */
+.nav-indicator {
+  position: absolute; bottom: -1px; left: 0; height: 2px; width: 40px;
+  background: linear-gradient(90deg, transparent, var(--fg) 30%, var(--fg) 70%, transparent);
+  border-radius: 2px; pointer-events: none;
+  transition: transform 240ms var(--ease), width 240ms var(--ease);
+}
+@media (prefers-reduced-motion: reduce) { .nav-indicator { transition: none; } }
+@media (max-width: 767.98px) {
+  .topbar { padding-block: var(--s-3); }
+  .capsule { height: 56px; gap: var(--s-4); padding-right: var(--s-6); }
+  .avatar { width: 40px; height: 40px; }
+  .nav a { font-size: var(--t-secondary); }
+}
+
+/* ---------- Page grid: fluid, content takes 2/3, brain takes 1/3 of the screen ---------- */
+.page {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(var(--brain-w) - max(var(--gutter), env(safe-area-inset-right, 0px)));
+  gap: 0;
+}
+.content { min-width: 0; padding-block: var(--s-12) var(--s-24); padding-right: clamp(24px, 4vw, 96px); }
+
+/* ---------- Brain (BrainTM component, no frame) ---------- */
+.brain-col {
+  position: relative; min-width: 0;
+  margin-right: calc(-1 * max(var(--gutter), env(safe-area-inset-right, 0px)));  /* bleed to the right edge */
+}
+.brain-sticky {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + var(--header-h));
+  height: calc(100vh - var(--header-h));
+  height: calc(100dvh - var(--header-h) - env(safe-area-inset-top, 0px));
+}
+/* mountBrainHero() fills #brain; its canvas clears to #050807 = --bg, so there is no visible box.
+   --brain-fit: share of the column the brain fills (patched option in brain-hero.js). */
+#brain { position: absolute; inset: 0; --brain-fit: 1.35; --brain-offset-x: -0.08; --brain-offset-y: 0; }
+#brain .bh-stage { touch-action: pan-y; }
+/* slice scale on the right, no label, no reset */
+#brain .bh-label, #brain .bh-reset { display: none; }
+#brain .bh-scale { left: auto; right: var(--gutter); align-items: flex-end; }
+#brain .bh-ticks { height: min(56vh, 520px); }
+#brain .bh-tick, #brain .bh-handle { left: auto; right: 0; }
+#brain .bh-readout { left: auto; right: 50px; }
+
+/* Narrow: the brain becomes a sticky band under the top bar, one third of the screen tall */
+@media (max-width: 767.98px) {
+  :root { --header-h: 80px; }
+  .page { grid-template-columns: minmax(0, 1fr); }
+  .content { padding-right: 0; padding-block: var(--s-8) var(--s-16); }
+  .brain-col {
+    order: -1;
+    position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--header-h)); z-index: 10;
+    margin-inline: calc(-1 * max(var(--gutter), env(safe-area-inset-left, 0px))) calc(-1 * max(var(--gutter), env(safe-area-inset-right, 0px)));
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .brain-sticky { position: relative; top: auto; height: 33.333vh; height: 33.333svh; }
+  #brain { --brain-fit: 1.25; --brain-offset-x: -0.12; }
+  #brain .bh-scale { top: 50%; transform: translateY(-50%); }
+  #brain .bh-ticks { height: calc(33.333svh - 48px); }
+  #brain .bh-readout { right: 36px; }
+}
+
+/* ---------- Intro ---------- */
+.intro { display: grid; gap: var(--s-6); padding-bottom: var(--s-16); border-bottom: 1px solid var(--line); }
+.intro h1 {
+  margin: 0; font-size: var(--t-h1); line-height: var(--lh-tight);
+  font-weight: var(--w-medium); letter-spacing: -0.02em; text-wrap: balance;
+  max-width: 20ch;
+}
+.intro h1 .muted { color: var(--fg-3); }
+.intro p { margin: 0; max-width: 60ch; color: var(--fg-2); }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-8); margin: 0; padding: 0; list-style: none; }
+.facts li { display: grid; gap: 2px; }
+.facts dt, .facts .k { color: var(--fg-3); }
+@media (max-width: 767.98px) { .intro h1 { font-size: var(--t-h2); } }
+
+/* ---------- Index (compact rows) ---------- */
+.section-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-4);
+  margin: 0 0 var(--s-4);
+}
+.section-head h2 { margin: 0; font-size: var(--t-secondary); font-weight: var(--w-medium); color: var(--fg-2); }
+.index { padding-block: var(--s-12) var(--s-16); }
+.index-list {
+  list-style: none; margin: 0; padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.index-list li + li { border-top: 1px solid var(--line); }
+.index-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: baseline; gap: var(--s-4);
+  min-height: 48px; padding: var(--s-3) var(--s-4);
+  transition: background-color 150ms var(--ease);
+}
+.index-row:hover { background: var(--surface-2); }
+.index-row .period { color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.index-row .name { font-size: var(--t-body); min-width: 0; }
+.index-row .name span { color: var(--fg-3); }
+.index-row .kind { color: var(--fg-3); font-size: var(--t-secondary); text-align: right; white-space: nowrap; }
+.index-row .arrow { color: var(--fg-3); margin-left: var(--s-2); }
+.index-row:hover .arrow { color: var(--fg); }
+@media (max-width: 767.98px) {
+  .index-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .index-row .period { grid-column: 1 / -1; }
+  .index-row .kind { font-size: var(--t-meta); }
+}
+
+/* ---------- Year groups & projects ---------- */
+.year { position: relative; }
+.year-label {
+  display: flex; align-items: baseline; gap: var(--s-4);
+  padding-block: var(--s-6) var(--s-4);
+  border-top: 1px solid var(--line-strong);
+}
+.year-label h2 {
+  margin: 0; font-family: var(--font-mono); font-weight: var(--w-regular);
+  font-size: var(--t-h3); line-height: var(--lh-tight); font-variant-numeric: tabular-nums;
+}
+
+#projects, #about, #contact { scroll-margin-top: calc(var(--header-h) + var(--s-6)); }
+.project {
+  display: grid; gap: var(--s-6);
+  padding-block: var(--s-8) var(--s-16);
+  scroll-margin-top: calc(var(--header-h) + var(--s-6));
+}
+@media (max-width: 767.98px) { .project { scroll-margin-top: calc(var(--header-h) + 33.333svh + var(--s-4)); } }
+.project + .project { border-top: 1px solid var(--line); }
+.project-head { display: grid; gap: var(--s-2); }
+.project-meta { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); color: var(--fg-3); }
+.project-meta .slice-tag { color: var(--fg-2); }
+.project h3 {
+  margin: 0; font-size: var(--t-h2); line-height: var(--lh-tight);
+  font-weight: var(--w-medium); letter-spacing: -0.015em; text-wrap: balance;
+}
+.project .lede { margin: 0; color: var(--fg-2); max-width: 62ch; }
+
+.cover {
+  position: relative; margin: 0;
+  aspect-ratio: 16 / 10; max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden;
+}
+.cover-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 48px 48px; background-position: -1px -1px;
+  opacity: 0.5;
+}
+.cover-frame {
+  position: absolute; inset: 12% 14% 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong); border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.cover-frame.is-phone { inset: 10% 38% -8%; border-radius: 18px 18px 0 0; }
+.cover-frame::before {
+  content: ""; position: absolute; left: 6%; right: 40%; top: 10%; height: 8px;
+  background: var(--line-strong); border-radius: 2px;
+  box-shadow: 0 20px 0 -2px var(--line), 0 38px 0 -2px var(--line);
+}
+.cover figcaption { position: absolute; left: var(--s-4); bottom: var(--s-3); color: var(--fg-3); }
+
+.facts-row {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4);
+  margin: 0; padding: var(--s-4) 0 0; border-top: 1px solid var(--line);
+}
+.facts-row div { display: grid; gap: var(--s-1); min-width: 0; }
+.facts-row dt { color: var(--fg-3); }
+.facts-row dd { margin: 0; font-size: var(--t-secondary); }
+.facts-row dd.metric { font-size: var(--t-h3); line-height: var(--lh-tight); font-variant-numeric: tabular-nums; }
+@media (max-width: 767.98px) { .facts-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+.case-link {
+  justify-self: start;
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  min-height: 44px; padding-inline: var(--s-4);
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  font-size: var(--t-secondary); font-weight: var(--w-medium);
+  transition: border-color 150ms var(--ease), background-color 150ms var(--ease);
+}
+.case-link:hover { border-color: var(--fg-2); background: var(--surface); }
+.case-link.is-soon { color: var(--fg-3); border-style: dashed; pointer-events: none; }
+
+/* ---------- About / contact ---------- */
+.about { display: grid; gap: var(--s-6); padding-block: var(--s-12); border-top: 1px solid var(--line-strong); }
+.about p { margin: 0; max-width: 62ch; color: var(--fg-2); }
+.about p strong { color: var(--fg); font-weight: var(--w-medium); }
+.contacts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.contact {
+  display: inline-flex; align-items: center; gap: var(--s-3);
+  min-height: 44px; padding-inline: var(--s-4);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  font-size: var(--t-secondary); color: var(--fg); font-family: inherit; cursor: pointer;
+  transition: border-color 150ms var(--ease);
+}
+.contact:hover { border-color: var(--line-strong); }
+.contact .faint { font-family: var(--font-mono); font-size: var(--t-meta); }
+.foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); padding-top: var(--s-8); color: var(--fg-3); }
+
+.toast {
+  position: fixed; left: 50%; transform: translate(-50%, 8px);
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom, 0px));
+  padding: var(--s-2) var(--s-4);
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius);
+  font-size: var(--t-secondary); opacity: 0; pointer-events: none;
+  transition: opacity 150ms var(--ease), transform 150ms var(--ease);
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: opacity 1ms; transform: translate(-50%, 0); }
+}
+</style>
+</head>
+<body>
+<header class="topbar gutter">
+  <div class="topbar-inner">
+    <div class="capsule">
+      <a class="avatar-link" href="#top" data-nav="top" aria-label="Артем, продуктовый дизайнер. Наверх">
+        <img class="avatar" src="avatar.jpg" width="48" height="48" alt="">
+      </a>
+      <nav class="nav" aria-label="Разделы">
+        <a href="#projects" data-nav="projects">проекты</a>
+        <a href="#about" data-nav="about">карьера</a>
+        <a href="#contact" data-nav="contact">связь со мной</a>
+      </nav>
+      <span class="nav-indicator" id="nav-indicator" aria-hidden="true"></span>
+    </div>
+  </div>
+</header>
+
+<div class="page gutter" id="top">
+  <main class="content">
+    <section class="intro" aria-labelledby="intro-title">
+      <h1 id="intro-title">Проектирую сервисы, в которых сложное становится понятным. <span class="muted">Восемь лет в продукте, от первых экранов до дизайн-систем.</span></h1>
+      <p>Ниже мои работы в хронологическом порядке, от новых к старым. Каждый проект соответствует одному срезу мозга: листая вниз, вы двигаетесь от того, чем я занят сейчас, к тому, с чего начинал.</p>
+      <ul class="facts">
+        <li><span class="mono k">Сейчас</span><span>Ведущий дизайнер, «Полоса»</span></li>
+        <li><span class="mono k">Город</span><span>Москва, удалённо</span></li>
+        <li><span class="mono k">Статус</span><span>Открыт к предложениям</span></li>
+      </ul>
+    </section>
+
+    <section class="index" id="projects" aria-labelledby="index-title">
+      <div class="section-head">
+        <h2 id="index-title">Все проекты</h2>
+        <span class="mono faint" id="index-count"></span>
+      </div>
+      <ol class="index-list" id="index-list"></ol>
+    </section>
+
+    <div id="work"></div>
+
+    <section class="about" id="about" aria-labelledby="about-title">
+      <div class="section-head"><h2 id="about-title">Карьера</h2></div>
+      <p><strong>Начинал с интерфейсов для небольших студий, потом ушёл в продуктовые команды.</strong> Работаю на стыке исследований и интерфейса: сначала разбираюсь, где пользователь теряется, потом проектирую так, чтобы это место исчезло. Люблю системы, которые переживают смену команды.</p>
+      <p>Инструменты: Figma, FigJam, Protopie, немного кода на фронтенде. Провожу интервью и юзабилити-тесты сам, без отдельного исследователя.</p>
+      <div class="contacts" id="contact">
+        <button class="contact" type="button" data-copy="hello@example.com">hello@example.com <span class="faint">Скопировать</span></button>
+        <a class="contact" href="https://t.me/" target="_blank" rel="noopener">Telegram <span class="faint">@artem</span></a>
+        <a class="contact" href="https://www.linkedin.com/" target="_blank" rel="noopener">LinkedIn <span class="faint">↗</span></a>
+        <a class="contact" href="#" aria-disabled="true">Резюме, PDF <span class="faint">скоро</span></a>
+      </div>
+      <div class="foot mono">
+        <span>© 2026 Артем</span>
+        <span>Контент временный, v1</span>
+      </div>
+    </section>
+  </main>
+
+  <aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
+    <div class="brain-sticky">
+      <div id="brain"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  // Mock content. Newest first. Each project is one brain slice.
+  const projects = [
+    { id: "polosa-business", year: 2026, period: "2025 — сейчас", title: "Банк для малого бизнеса", company: "Полоса", kind: "Мобильное приложение", device: "phone",
+      lede: "Пересобрал главный экран и платежи для предпринимателей, которые заходят в банк на две минуты между делами. Убрали шесть экранов из сценария оплаты счёта.",
+      role: "Ведущий дизайнер", team: "2 дизайнера, 9 разработчиков", metric: "−38%", metricLabel: "время оплаты счёта", case: true },
+    { id: "polosa-ds", year: 2025, period: "2024 — 2025", title: "Дизайн-система «Грань»", company: "Полоса", kind: "Дизайн-система",
+      lede: "Одна система для веба, iOS и Android: токены, 64 компонента, документация и процесс приёма изменений от продуктовых команд.",
+      role: "Автор и мейнтейнер", team: "3 дизайнера, 4 разработчика", metric: "11", metricLabel: "команд на системе", case: true },
+    { id: "clinic-booking", year: 2024, period: "2023 — 2024", title: "Запись к врачу за три шага", company: "Здравица", kind: "Веб-сервис",
+      lede: "Сервис записи для сети клиник. Исследовали, почему пациенты бросают запись на выборе времени, и перепроектировали этот шаг вокруг ближайших свободных окон.",
+      role: "Продуктовый дизайнер", team: "1 дизайнер, 1 исследователь, 6 разработчиков", metric: "+21%", metricLabel: "завершённых записей", case: true },
+    { id: "clinic-doctor", year: 2023, period: "2023", title: "Кабинет врача", company: "Здравица", kind: "Внутренний инструмент",
+      lede: "Рабочее место врача на приёме: расписание дня, карта пациента и назначения на одном экране вместо трёх вкладок старой системы.",
+      role: "Продуктовый дизайнер", team: "1 дизайнер, 5 разработчиков", metric: "4 мин", metricLabel: "экономия на приёме", case: false },
+    { id: "logist-analytics", year: 2022, period: "2021 — 2022", title: "Аналитика для логистов", company: "Маршрут", kind: "B2B, дашборды",
+      lede: "Панель для диспетчеров грузоперевозок: где машины, кто опаздывает и почему. Главная сложность была в плотности данных без потери читаемости.",
+      role: "Продуктовый дизайнер", team: "2 дизайнера, 7 разработчиков", metric: "320", metricLabel: "компаний-клиентов", case: true },
+    { id: "logist-onboarding", year: 2021, period: "2021", title: "Онбординг перевозчиков", company: "Маршрут", kind: "Веб, формы",
+      lede: "Регистрация перевозчика с проверкой документов. Разбили длинную анкету на шаги и сделали сохранение черновика, чтобы можно было вернуться позже.",
+      role: "Дизайнер", team: "1 дизайнер, 3 разработчика", metric: "2×", metricLabel: "больше завершённых анкет", case: false },
+    { id: "food-delivery", year: 2020, period: "2019 — 2020", title: "Доставка из фермерских лавок", company: "Грядка", kind: "Мобильное приложение", device: "phone",
+      lede: "Первый продукт, который я вёл целиком: от интервью с фермерами до запуска в сторах. Каталог, корзина, слоты доставки.",
+      role: "Единственный дизайнер", team: "4 разработчика", metric: "4,8", metricLabel: "рейтинг в App Store", case: false },
+    { id: "studio-sites", year: 2018, period: "2017 — 2019", title: "Сайты для студии", company: "Студия «Контур»", kind: "Веб, лендинги",
+      lede: "Около тридцати сайтов для малого бизнеса. Здесь я научился работать с клиентом, сроками и вёрсткой, и понял, что хочу заниматься продуктом.",
+      role: "Веб-дизайнер", team: "Студия из 6 человек", metric: "~30", metricLabel: "запущенных сайтов", case: false }
+  ];
+
+  const total = projects.length;
+  const pad = (n) => String(n).padStart(2, "0");
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // Index rows
+  document.getElementById("index-count").textContent = total + " проектов · 2017 — 2026";
+  document.getElementById("index-list").innerHTML = projects.map((p) => `
+    <li><a class="index-row" href="#${p.id}">
+      <span class="period mono">${esc(p.period)}</span>
+      <span class="name">${esc(p.title)} <span>· ${esc(p.company)}</span></span>
+      <span class="kind">${esc(p.kind)}<span class="arrow" aria-hidden="true">↓</span></span>
+    </a></li>`).join("");
+
+  // Year groups with project sections
+  const years = [];
+  projects.forEach((p, i) => {
+    let g = years.find((y) => y.year === p.year);
+    if (!g) years.push(g = { year: p.year, items: [] });
+    g.items.push({ ...p, slice: i + 1 });
+  });
+  document.getElementById("work").outerHTML = `<div id="work">` + years.map((g) => `
+    <section class="year" aria-labelledby="y-${g.year}">
+      <div class="year-label"><h2 id="y-${g.year}">${g.year}</h2><span class="mono faint">${g.items.length === 1 ? "1 проект" : g.items.length + " проекта"}</span></div>
+      ${g.items.map((p) => `
+      <article class="project" id="${p.id}" data-slice="${p.slice}" data-year="${p.year}" aria-labelledby="t-${p.id}">
+        <div class="project-head">
+          <div class="project-meta mono">
+            <span>${esc(p.period)}</span>
+            <span>${esc(p.company)}</span>
+            <span>${esc(p.kind)}</span>
+          </div>
+          <h3 id="t-${p.id}">${esc(p.title)}</h3>
+        </div>
+        <figure class="cover">
+          <div class="cover-grid"></div>
+          <div class="cover-frame${p.device === "phone" ? " is-phone" : ""}"></div>
+          <figcaption class="mono">Обложка проекта · 1600 × 1000</figcaption>
+        </figure>
+        <p class="lede">${esc(p.lede)}</p>
+        <dl class="facts-row">
+          <div><dt class="mono">Роль</dt><dd>${esc(p.role)}</dd></div>
+          <div><dt class="mono">Команда</dt><dd>${esc(p.team)}</dd></div>
+          <div><dt class="mono">${esc(p.metricLabel)}</dt><dd class="metric">${esc(p.metric)}</dd></div>
+        </dl>
+        ${p.case
+          ? `<a class="case-link" href="#${p.id}">Открыть кейс <span aria-hidden="true">→</span></a>`
+          : `<span class="case-link is-soon">Кейс готовится</span>`}
+      </article>`).join("")}
+    </section>`).join("") + `</div>`;
+
+  // Scroll → active project + progress through the list
+  const sections = Array.from(document.querySelectorAll(".project"));
+  let active = -1;
+
+  function update() {
+    const vh = window.innerHeight;
+    const line = vh * 0.4;
+    let idx = 0;
+    sections.forEach((s, i) => { if (s.getBoundingClientRect().top <= line) idx = i; });
+
+    const first = sections[0].getBoundingClientRect().top;
+    const last = sections[sections.length - 1].getBoundingClientRect();
+    const span = (last.bottom - first) || 1;
+    const progress = Math.min(1, Math.max(0, (line - first) / span));
+
+    if (idx !== active) active = idx;
+    setNav(line);
+    window.dispatchEvent(new CustomEvent("brain:slice", {
+      detail: { index: idx, total, year: projects[idx].year, id: projects[idx].id, progress }
+    }));
+  }
+
+  // Header: highlight the current section and slide the indicator under it
+  const capsule = document.querySelector(".capsule");
+  const indicator = document.getElementById("nav-indicator");
+  const navItems = Array.from(document.querySelectorAll("[data-nav]"));
+  let navKey = "";
+  function setNav(line) {
+    const docEl = document.documentElement;
+    const atBottom = window.scrollY + window.innerHeight >= docEl.scrollHeight - 4;
+    const topOf = (id) => document.getElementById(id).getBoundingClientRect().top;
+    const key = atBottom ? "contact" : topOf("about") <= line ? "about" : topOf("projects") <= line ? "projects" : "top";
+    if (key === navKey) return;
+    navKey = key;
+    navItems.forEach((a) => a.dataset.nav === key ? a.setAttribute("aria-current", "true") : a.removeAttribute("aria-current"));
+    placeIndicator();
+  }
+  function placeIndicator() {
+    const item = navItems.find((a) => a.dataset.nav === navKey);
+    if (!item) return;
+    const c = capsule.getBoundingClientRect(), r = item.getBoundingClientRect();
+    const w = Math.max(32, r.width * 0.7);
+    indicator.style.width = w + "px";
+    indicator.style.transform = `translateX(${r.left - c.left + (r.width - w) / 2}px)`;
+  }
+  window.addEventListener("resize", placeIndicator);
+  if (document.fonts) document.fonts.ready.then(placeIndicator);
+
+  let queued = false;
+  const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; update(); }); } };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onScroll);
+  update();
+
+  // Copy email
+  const toast = document.getElementById("toast");
+  let tt;
+  function say(msg) { toast.textContent = msg; toast.classList.add("is-on"); clearTimeout(tt); tt = setTimeout(() => toast.classList.remove("is-on"), 1800); }
+  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+    const v = b.getAttribute("data-copy");
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(b.firstChild ? b : b); const s = getSelection(); s.removeAllRanges(); s.addRange(r); say("Выделил адрес, скопируйте вручную"); };
+    try { navigator.clipboard.writeText(v).then(() => say("Почта скопирована"), fallback); } catch (e) { fallback(); }
+  }));
+  document.querySelectorAll('[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
+})();
+</script>
+<script type="module">
+  // BrainTM: scrolling the project list moves the axial slice from the top of the brain down.
+  import { mountBrainHero } from "./brain/brain-hero.js";
+  const root = document.getElementById("brain");
+  const hero = mountBrainHero(root, { dataUrl: "brain/data/" });
+  let count = 0, last = 0;
+  const apply = () => { if (count) hero.setSlice(count - last * (count - 1)); };
+  window.addEventListener("brain:slice", (e) => { last = e.detail.progress; apply(); });
+  // the module has no ready event: the slider gets aria-valuemax once the scan is loaded
+  const ticks = root.querySelector("[data-ticks]");
+  if (ticks) {
+    const ready = () => { const n = +ticks.getAttribute("aria-valuemax"); if (n) { count = n; apply(); return true; } };
+    if (!ready()) { const mo = new MutationObserver(() => { if (ready()) mo.disconnect(); }); mo.observe(ticks, { attributes: true }); }
+  }
+</script>
+</body>
+</html>
