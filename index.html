@@ -307,9 +307,12 @@ body::after {
   .brain-col {
     z-index: 10; top: 0; bottom: auto; left: 0; right: 0; width: auto;
     height: calc(var(--safe-t) + var(--brain-h));
-    background: var(--bg); border-radius: 0 0 var(--island-r) var(--island-r);
-    box-shadow: 0 var(--island-gap-h) 0 0 var(--island-gap);  /* the 8px grey gap stays under it while cards scroll */
   }
+  /* the cards scroll only below the header: a grey layer hides everything from the top of the screen down to 8px
+     under the card, and the black card is drawn on top of it (both behind the brain and the ruler) */
+  .brain-col::before, .brain-col::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; }
+  .brain-col::before { bottom: calc(-1 * var(--island-gap-h)); background: var(--island-gap); }
+  .brain-col::after { bottom: 0; background: var(--bg); border-radius: 0 0 var(--island-r) var(--island-r); }
   #brain { top: var(--safe-t); bottom: var(--tl-h); }
   #brain { --brain-fit: 1.2; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.8; }
   #brain .bh-stage { touch-action: none; }
