@@ -360,6 +360,7 @@ export function mountBrainHero(root, opts = {}) {
     // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
     renderer._bhK = Math.min(1, Math.max(0.35, Math.min(w, h) / 720));
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
+    S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
     for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
   }
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
