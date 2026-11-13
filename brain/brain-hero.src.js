@@ -4,7 +4,7 @@
  *
  *   import { mountBrainHero } from './dist/brain-hero.js';
  *   const hero = mountBrainHero(document.querySelector('#brain'), { dataUrl: '/data/' });
- *   hero.setSlice(20); hero.reset(); hero.destroy();
+ *   hero.setSlice(20); hero.reset(); hero.setPaused(true); hero.destroy();
  *
  * Options
  *   dataUrl       folder with brain_atlas.webp|png, brain_meta.json, poster.png   (default 'data/')
@@ -358,7 +358,7 @@ export function mountBrainHero(root, opts = {}) {
     tilt.position.set(parseFloat(cs.getPropertyValue('--brain-offset-x')) || 0, parseFloat(cs.getPropertyValue('--brain-offset-y')) || 0, 0);
     // points have a fixed pixel size, so a small canvas packs them densely and the additive blend burns to white:
     // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
-    renderer._bhK = Math.min(1, Math.max(0.35, Math.min(w, h) / 720));
+    renderer._bhK = Math.min(1, Math.max(0.15, Math.min(w, h) / 720));  // floor 0.15: the page's small bubble brain
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
     S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
     for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
@@ -448,8 +448,11 @@ export function mountBrainHero(root, opts = {}) {
   let last = performance.now();
   const easeOut = t => 1 - (1 - t) ** 3;
   const ease = (cur, target, dt, upK, downK) => cur + (target - cur) * Math.min(1, dt * (target > cur ? upK : downK));
+  let paused = false, ticked = false;   // setPaused(true) stops rendering (an off-screen copy costs nothing)
   function tick(now) {
     if (destroyed) return;
+    ticked = true;
+    if (paused) { raf = 0; return; }
     const dt = Math.min((now - last) / 1000, 0.05); last = now;
 
     if (S.intro < 3) {                                            // intro: points assemble, vessels grow
@@ -502,6 +505,10 @@ export function mountBrainHero(root, opts = {}) {
   return {
     setSlice: n => setSliceFloat(n),
     reset,
+    setPaused(v) {
+      paused = !!v;
+      if (!paused && ticked && !raf && !destroyed) { last = performance.now(); raf = requestAnimationFrame(tick); }
+    },
     destroy() {
       destroyed = true; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('scroll', onScroll);
       renderer.dispose(); root.innerHTML = ''; root.classList.remove('bh');
