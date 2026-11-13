@@ -208,7 +208,7 @@ body::after {
 .p-body { display: grid; gap: var(--s-6); min-width: 0; }
 .p-body h3 { margin: 0; font-family: var(--font-head); font-size: clamp(1.25rem, 0.95rem + 0.8vw, 1.875rem); line-height: 1.25; font-weight: 300; letter-spacing: -0.01em; text-wrap: balance; }
 .cover {
-  position: relative; margin: var(--s-2) 0 0; aspect-ratio: 16 / 10; max-width: 100%;
+  position: relative; margin: 0; aspect-ratio: 16 / 10; max-width: 100%;
   background: var(--surface); border-radius: var(--radius); overflow: hidden;
 }
 .cover-frame {
@@ -217,6 +217,31 @@ body::after {
 }
 .cover-frame.is-phone { inset: 12% 39% -8%; border-radius: 18px 18px 0 0; }
 .cover figcaption { position: absolute; left: var(--s-4); bottom: var(--s-3); color: var(--fg-3); }
+/* the cover is the link into the case. With a mouse (Figma «Project card», state «Hover by mouse»): mint veil,
+   mint title, and the cursor turns into a «Смотреть кейс» pill that follows it inside the cover */
+.cover-link { display: block; position: relative; border-radius: 16px; color: inherit; }
+.cover-link .cover { margin: 0; }
+.cover-link { margin-top: var(--s-2); }
+.cover-cta {
+  position: absolute; z-index: 2; left: var(--cx, 50%); top: var(--cy, 50%); pointer-events: none;
+  display: inline-flex; align-items: center; height: 44px; padding: 0 var(--s-6); border-radius: 999px;
+  background: var(--fg); color: var(--bg); font-size: var(--t-secondary); font-weight: var(--w-medium); line-height: 20px; white-space: nowrap;
+  transform: translate(-50%, -50%) scale(0.6); opacity: 0;
+  transition: opacity 160ms var(--ease), transform 160ms var(--ease);
+  will-change: transform;
+}
+.p-body h3 { transition: color 160ms var(--ease); }
+@media (min-width: 768px) {
+  .cover { border-radius: 16px; }
+  .cover::after { content: ""; position: absolute; inset: 0; background: rgb(61 245 175 / 0.2); opacity: 0; transition: opacity 160ms var(--ease); pointer-events: none; }
+  .cover-link:focus-visible { outline-offset: 4px; border-radius: 16px; }
+  .project.is-cover-on h3 { color: var(--accent); }
+  .project.is-cover-on .cover::after, .cover-link:focus-visible .cover::after { opacity: 1; }
+  .project.is-cover-on .cover-cta, .cover-link:focus-visible .cover-cta { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .cover-link:focus-visible .cover-cta { --cx: 50%; --cy: 50%; }
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) { .cover-link { cursor: none; } }
+@media (max-width: 767.98px) { .cover-cta { display: none; } }
 .p-achievements { display: grid; gap: var(--s-4); margin-top: var(--s-4); }
 .p-achievements h4 { margin: 0; font-family: var(--font-head); font-size: clamp(1rem, 0.92rem + 0.25vw, 1.2rem); line-height: 1.3; font-weight: 300; color: var(--fg); }
 .p-achievements ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-3); max-width: 62ch; }
@@ -258,7 +283,7 @@ body::after {
 .toast.is-on { opacity: 1; transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: opacity 1ms; transform: translate(-50%, 0); }
-  .nav-indicator, .case-link span { transition: none; }
+  .nav-indicator, .cover-cta, .p-body h3 { transition: none; }
 }
 
 /* ---------- Narrow ---------- */
@@ -500,10 +525,13 @@ body::after {
       </div>
       <div class="p-body">
         <h3 id="t-${p.id}">${esc(p.title)}</h3>
+        <a class="cover-link" href="${p.case ? esc(p.case) : "#" + p.id}" aria-label="Смотреть кейс: ${esc(p.title)}">
         <figure class="cover">
           <div class="cover-frame${p.device === "phone" ? " is-phone" : ""}"></div>
           <figcaption class="mono">обложка 1600 × 1000</figcaption>
         </figure>
+        <span class="cover-cta" aria-hidden="true">Смотреть кейс</span>
+        </a>
         <div class="p-achievements">
           <h4>Достижения и вклад</h4>
           <ul>${p.achievements.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
@@ -517,6 +545,35 @@ body::after {
         </dl>
       </div>
     </article>`).join("");
+
+  // Cover hover (desktop, mouse only): the «Смотреть кейс» pill replaces the cursor and follows it, eased,
+  // kept fully inside the cover. Each project's case URL goes into its `case` field (case pages don't exist yet).
+  const fine = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 768px)");
+  document.querySelectorAll(".cover-link").forEach((link) => {
+    const card = link.closest(".project"), cta = link.querySelector(".cover-cta");
+    let tx = 0, ty = 0, x = 0, y = 0, raf = 0;
+    const target = (e) => {
+      const r = link.getBoundingClientRect(), hw = cta.offsetWidth / 2 + 12, hh = cta.offsetHeight / 2 + 12;
+      tx = Math.min(r.width - hw, Math.max(hw, e.clientX - r.left));
+      ty = Math.min(r.height - hh, Math.max(hh, e.clientY - r.top));
+    };
+    const put = () => { link.style.setProperty("--cx", x.toFixed(1) + "px"); link.style.setProperty("--cy", y.toFixed(1) + "px"); };
+    const step = () => {
+      const k = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 0.28;
+      x += (tx - x) * k; y += (ty - y) * k; put();
+      raf = Math.abs(tx - x) + Math.abs(ty - y) > 0.3 ? requestAnimationFrame(step) : 0;
+    };
+    link.addEventListener("pointerenter", (e) => {
+      if (!fine.matches || e.pointerType !== "mouse") return;
+      target(e); x = tx; y = ty; put();
+      card.classList.add("is-cover-on");
+    });
+    link.addEventListener("pointermove", (e) => {
+      if (!card.classList.contains("is-cover-on")) return;
+      target(e); if (!raf) raf = requestAnimationFrame(step);
+    });
+    link.addEventListener("pointerleave", () => { card.classList.remove("is-cover-on"); });
+  });
 
   const root = document.documentElement;
   const intro = document.querySelector(".intro");
