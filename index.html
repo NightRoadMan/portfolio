@@ -681,16 +681,26 @@ body::after {
     return true;
   }
   window.addEventListener("resize", () => { if (note.classList.contains("is-on") && !placeNote()) note.classList.remove("is-on"); });
-  const noteTimer = setTimeout(() => {
-    if (window.scrollY > window.innerHeight * 0.2) return;
-    if (!placeNote()) return;
-    note.classList.add("is-on");
-    setTimeout(() => note.classList.remove("is-on"), 10000);
-  }, 1200);
-  // it points at the full-size brain, so it leaves early once the visitor scrolls on
-  window.addEventListener("scroll", function hideNote() {
-    if (window.scrollY > window.innerHeight * 0.2) { note.classList.remove("is-on"); noteTimer && clearTimeout(noteTimer); window.removeEventListener("scroll", hideNote); }
-  }, { passive: true });
+  // phones: the note belongs to the intro brain card, so it stays: it draws itself once it is on screen and never hides
+  let noteTimer = 0;
+  if (!wide.matches) {
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      setTimeout(() => note.classList.add("is-on"), 400); io.disconnect();
+    }, { threshold: 0.9 });
+    io.observe(note);
+  } else {
+    noteTimer = setTimeout(() => {
+      if (window.scrollY > window.innerHeight * 0.2) return;
+      if (!placeNote()) return;
+      note.classList.add("is-on");
+      setTimeout(() => note.classList.remove("is-on"), 10000);
+    }, 1200);
+    // desktop: it points at the full-size brain, so it leaves early once the visitor scrolls on
+    window.addEventListener("scroll", function hideNote() {
+      if (window.scrollY > window.innerHeight * 0.2) { note.classList.remove("is-on"); clearTimeout(noteTimer); window.removeEventListener("scroll", hideNote); }
+    }, { passive: true });
+  }
   // On the projects the brain must fit the free lane between the content column and the scale,
   // so it never covers a cover image. The brain's drawn width is ~0.61 × min(screen height, brain area width)
   // at scale 1, centred at 41.4% of the brain area (measured from the component's render).
