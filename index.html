@@ -350,7 +350,7 @@ body::after {
   }
   .brain-col::before { z-index: -1; background: rgb(5 8 7 / calc(1 - 0.2 * var(--cp, 0))); }
   #brain { top: 10px; bottom: var(--tl-h); height: auto; }  /* the component's .bh sets height:100%, which would override bottom */
-  #brain { --brain-fit: 1.73; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.85; }
+  #brain { --brain-fit: 1.73; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.85; --brain-drag: 1.3; }  /* finger rotation 30% faster */
   #brain .bh-stage { transform-origin: 50% 100%; touch-action: pan-y; }  /* shrinks onto the ruler; in the intro a vertical swipe still scrolls */
   .brain-col.is-stuck #brain .bh-stage { touch-action: none; }          /* stuck at the top, the finger belongs to the brain */
   @media (max-width: 359.98px) { .brain-note { display: none; } }
@@ -398,7 +398,8 @@ body::after {
   #work-list > .project:first-child { border-top-left-radius: 0; border-top-right-radius: 0; }
   .project { background: var(--bg); border-radius: var(--island-r); padding: var(--s-6) !important; }
   .project + .project { border-top: 0; }
-  .work > .label, .about > .label { padding-top: 0; border-top: 0; }
+  .work > .label, .about > .label { border-top: 0; }
+  .about > .label { padding-top: 0; }  /* the work label keeps its 24px top padding (it sits on the island's top edge) */
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .project { scroll-margin-top: calc(var(--safe-t) + 204px + var(--island-gap-h)); }
   .p-meta { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s-4); }

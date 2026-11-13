@@ -365,13 +365,13 @@ export function mountBrainHero(root, opts = {}) {
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
 
   /* drag to rotate + pointer ripple */
-  const K = 0.0075;
+  let K = 0.0075;  // drag sensitivity; --brain-drag on the container multiplies it (read on each press)
   const setPointer = e => {
     const r = el.stage.getBoundingClientRect();
     fx.uPointer.value.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
     S.pointerOn = 1; S.pointerIdle = 0;
   };
-  const onDown = e => { S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
+  const onDown = e => { K = 0.0075 * (parseFloat(getComputedStyle(root).getPropertyValue('--brain-drag')) || 1); S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
   const onMove = e => {
     setPointer(e);
     if (!S.dragging) return;
