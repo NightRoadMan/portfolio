@@ -332,7 +332,7 @@ body::after {
   /* the brain lives at the bottom of the intro island (Figma «Mobile — 390»), big, and scrolls away with it.
      Once that card is off the screen, a second brain flies in from the top in a small translucent bubble (top centre);
      tapping the bubble opens the brain full width in a popup. The timeline is a vertical ruler fixed at the right edge. */
-  :root { --safe-t: env(safe-area-inset-top, 0px); --card-pt: 24px; --card-pb: 24px; --brain-slot: 186px; --bubble-d: 112px; }
+  :root { --safe-t: env(safe-area-inset-top, 0px); --card-pt: 24px; --card-pb: 24px; --brain-slot: calc(87.5vw - 48px);  /* card = 87.5vw, so the brain spans ~80% of the screen width */ --bubble-d: 112px; }
   .brain-col {
     position: relative; z-index: 2; inset: auto; width: auto;
     height: calc(var(--card-pt) + var(--brain-slot) + var(--card-pb));
