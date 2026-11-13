@@ -271,9 +271,9 @@ export function mountBrainHero(root, opts = {}) {
   }
 
   /* scene */
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });  // transparent: the page shows through (translucent brain card on phones)
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setClearColor(C.clear, 1);
+  renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.localClippingEnabled = true;
   el.stage.appendChild(renderer.domElement);
@@ -360,18 +360,19 @@ export function mountBrainHero(root, opts = {}) {
     // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
     renderer._bhK = Math.min(1, Math.max(0.35, Math.min(w, h) / 720));
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
+    S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
     for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
   }
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
 
   /* drag to rotate + pointer ripple */
-  const K = 0.0075;
+  let K = 0.0075;  // drag sensitivity; --brain-drag on the container multiplies it (read on each press)
   const setPointer = e => {
     const r = el.stage.getBoundingClientRect();
     fx.uPointer.value.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
     S.pointerOn = 1; S.pointerIdle = 0;
   };
-  const onDown = e => { S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
+  const onDown = e => { K = 0.0075 * (parseFloat(getComputedStyle(root).getPropertyValue('--brain-drag')) || 1); S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
   const onMove = e => {
     setPointer(e);
     if (!S.dragging) return;
