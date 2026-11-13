@@ -124,7 +124,7 @@ body::after {
   transform: translateX(var(--bx, 0px)) scale(var(--bs)); transform-origin: 41.4% 50%; will-change: transform;  /* shrink around the brain itself, then slide into the free lane */
 }
 .brain-col { pointer-events: none; }
-.tl { display: none; }
+.tl, .brain-bubble, .brain-pop { display: none; }
 @media (max-width: 767.98px) { .tl { display: flex; pointer-events: auto; } }
 #brain .bh-stage, #brain .bh-scale { pointer-events: auto; }
 #brain .bh-label, #brain .bh-reset, #brain .bh-readout { display: none; }
@@ -326,40 +326,64 @@ body::after {
   body::after { display: none; }
   .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
   .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
-  /* the brain lives at the bottom of the intro island (Figma «Mobile — 390»): big, ruler under it. On scroll the
-     card sticks to the top (sticky, so the compositor keeps it in place), the brain eases from 1 to 0.8 and the card
-     turns translucent with a backdrop blur (Figma «Mobile — 391»); the projects scroll under it.
-     The card keeps its height in the flow (no layout shift): it sticks with its top --card-cut above the screen,
-     so only the bottom 180px show, and its background starts --card-cut lower. JS sets --cp (0 → 1).
-     The timeline is not in the card: it is a vertical ruler fixed at the right edge, 40% of the screen tall.
-     Once stuck, the card folds into a translucent circle (--circle-d) at the top centre; the brain shrinks to 0.72
-     and is clipped to the circle, so the page beside it stays visible and tappable. */
-  :root { --safe-t: env(safe-area-inset-top, 0px); --card-pt: 24px; --card-pb: 24px; --brain-slot: 186px; --card-cut: 54px; --circle-d: 168px; --circle-gap: 6px; }
+  /* the brain lives at the bottom of the intro island (Figma «Mobile — 390»), big, and scrolls away with it.
+     Once that card is off the screen, a second brain flies in from the top in a small translucent bubble (top centre);
+     tapping the bubble opens the brain full width in a popup. The timeline is a vertical ruler fixed at the right edge. */
+  :root { --safe-t: env(safe-area-inset-top, 0px); --card-pt: 24px; --card-pb: 24px; --brain-slot: 186px; --bubble-d: 112px; }
   .brain-col {
-    position: sticky; z-index: 10; inset: auto; width: auto;
-    top: calc(var(--safe-t) - var(--card-cut));
+    position: relative; z-index: 2; inset: auto; width: auto;
     height: calc(var(--card-pt) + var(--brain-slot) + var(--card-pb));
     margin-top: calc(-1 * var(--island-gap-h) - 1px);  /* touches the intro island (1px overlap, no seam) */
+    background: var(--bg); border-radius: 0 0 var(--island-r) var(--island-r);
   }
-  .brain-col::before, .brain-col::after {
-    content: ""; position: absolute;
-    /* full-width card (cp 0) → circle at the top centre of the visible part (cp 1) */
-    left: calc(var(--cp, 0) * (50% - var(--circle-d) / 2)); right: calc(var(--cp, 0) * (50% - var(--circle-d) / 2));
-    top: calc(var(--cp, 0) * (var(--card-cut) + var(--circle-gap)));
-    bottom: calc(var(--cp, 0) * (var(--card-pt) + var(--brain-slot) + var(--card-pb) - var(--card-cut) - var(--circle-gap) - var(--circle-d)));
-    border-radius: calc(var(--island-r) + var(--cp, 0) * (var(--circle-d) / 2 - var(--island-r)));
-    pointer-events: none;
-  }
-  /* blur first, then the tint: solid in the intro, 70% once it is the circle */
-  .brain-col::after { z-index: -2; opacity: var(--cp, 0); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-  .brain-col::before { z-index: -1; background: rgb(5 8 7 / calc(1 - 0.3 * var(--cp, 0))); box-shadow: inset 0 0 0 1px rgb(255 255 255 / calc(0.1 * var(--cp, 0))); }
-  /* the canvas (and its hit area) is clipped to the circle as it forms; centre = circle centre in #brain coords */
-  #brain { clip-path: circle(calc(260px - var(--cp, 0) * (260px - var(--circle-d) / 2)) at 50% calc(var(--cp, 0) * (var(--card-cut) + var(--circle-gap) + var(--circle-d) / 2 + 10px) + (1 - var(--cp, 0)) * 50%)); }
   #brain { top: -10px; bottom: calc(var(--card-pb) - 20px); height: auto; }  /* 20px of headroom above and below so a tilted brain is not cut; the component's .bh sets height:100%, which would override bottom */
   #brain { --brain-fit: 1.44; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.85; --brain-drag: 1.3; --brain-spin: 1.3; }  /* finger rotation and idle spin 30% faster */
-  /* shrinks around the circle centre and drops a little so the brain sits in the middle of it; in the intro a vertical swipe still scrolls */
-  #brain .bh-stage { transform: translateY(calc(var(--cp, 0) * var(--circle-dy, 16px))) scale(var(--bs)); transform-origin: 50% calc(var(--card-cut) + var(--circle-gap) + var(--circle-d) / 2 + 10px); touch-action: pan-y; }
-  .brain-col.is-stuck #brain .bh-stage { touch-action: none; }          /* stuck at the top, the finger belongs to the brain */
+  #brain .bh-stage { transform: none; touch-action: pan-y; }  /* a vertical swipe on the brain still scrolls the page */
+
+  /* the bubble: 35% tint + blur, thin light ring; flies in from above with a little overshoot, leaves upwards */
+  .brain-bubble {
+    display: block; position: fixed; z-index: 30; left: 50%; top: calc(var(--safe-t) + 12px);
+    width: var(--bubble-d); height: var(--bubble-d); margin-left: calc(var(--bubble-d) / -2);
+    border-radius: 50%; overflow: hidden; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    background: rgb(5 8 7 / .35); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border: 1px solid rgb(255 255 255 / .14);
+    transform: translateY(calc(-100% - var(--safe-t) - 24px)) scale(.7); opacity: 0; visibility: hidden;
+    transition: transform 320ms cubic-bezier(.5, 0, .75, 0), opacity 160ms linear 160ms, visibility 0s 320ms;
+  }
+  .brain-bubble.is-on {
+    transform: none; opacity: 1; visibility: visible;
+    transition: transform 640ms cubic-bezier(.3, 1.4, .55, 1), opacity 120ms linear, visibility 0s;
+  }
+  .brain-bubble:active { scale: .94; }
+  .brain-bubble:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 3px; }
+  #brain-mini { position: absolute; inset: 0; pointer-events: none; --brain-fit: 1.3; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.5; --brain-drag: 1.3; --brain-spin: 1.3; --bh-mono: var(--font-mono); }
+  #brain-mini * { pointer-events: none; }
+  #brain-mini .bh-scale, #brain-mini .bh-label, #brain-mini .bh-reset, #brain-mini .bh-readout, #brain-mini .bh-loader { display: none; }
+
+  /* the popup: whole screen, 50% tint + blur, the brain full width; the close button is an icon in a translucent ringed circle */
+  .brain-pop {
+    display: grid; place-items: center; position: fixed; inset: 0; z-index: 60;
+    background: rgb(5 8 7 / .5); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    opacity: 0; visibility: hidden; transition: opacity 260ms var(--ease), visibility 0s 260ms;
+  }
+  .brain-pop.is-open { opacity: 1; visibility: visible; transition: opacity 260ms var(--ease), visibility 0s; }
+  .brain-pop-stage { position: relative; width: 100vw; height: min(100vw, 80vh); scale: .9; transition: scale 360ms cubic-bezier(.3, 1.3, .55, 1); }
+  .brain-pop.is-open .brain-pop-stage { scale: 1; }
+  .brain-pop #brain-mini { --brain-fit: 1.55; pointer-events: auto; }
+  .brain-pop #brain-mini .bh-stage { pointer-events: auto; touch-action: none; }  /* in the popup the finger turns the brain */
+  .brain-pop-close {
+    position: absolute; top: calc(var(--safe-t) + 16px); right: 16px; width: 44px; height: 44px; padding: 0;
+    display: grid; place-items: center; border-radius: 50%; cursor: pointer; color: var(--fg);
+    background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .22);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  .brain-pop-close svg { width: 18px; height: 18px; }
+  .brain-pop-close:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 3px; }
+  html.is-pop { overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) {
+    .brain-bubble, .brain-bubble.is-on { transform: none; transition: opacity 160ms linear, visibility 0s; }
+    .brain-pop-stage { transition: none; scale: 1; }
+  }
   @media (max-width: 359.98px) { .brain-note { display: none; } }
   #brain .bh-scale, .slice-counter { display: none; }
   /* handwritten note: text on the left above the brain, the arrow under it bends right into the brain */
@@ -374,14 +398,14 @@ body::after {
      centred in the space under the stuck brain card; drag it to scroll the page */
   .tl {
     position: fixed; z-index: 3; right: 2px; width: 22px;
-    top: calc(var(--safe-t) + 90px + 30vh); height: 40vh;
+    top: 30vh; height: 40vh;
     display: flex; flex-direction: column; align-items: center;
     touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none;
   }
   .tl.is-dragging { cursor: grabbing; }
   .tl-n { display: none; flex: none; width: 5ch; font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--fg); }
   .tl-n span { color: var(--fg-3); }
-  @supports (height: 1svh) { .tl { top: calc(var(--safe-t) + 90px + 30svh); height: 40svh; } }
+  @supports (height: 1svh) { .tl { top: 30svh; height: 40svh; } }
   .tl::before { content: ""; position: absolute; inset: -8px -2px -8px -14px; }  /* bigger grab area */
   .tl-track { position: relative; flex: 1; width: 100%; }
   .tl-ticks { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 4px; }
@@ -412,7 +436,7 @@ body::after {
   .work > .label, .about > .label { border-top: 0; }
   .about > .label { padding-top: 0; }  /* the work label keeps its 24px top padding (it sits on the island's top edge) */
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
-  .project { scroll-margin-top: calc(var(--safe-t) + var(--circle-d) + 2 * var(--circle-gap)); }
+  .project { scroll-margin-top: calc(var(--safe-t) + var(--bubble-d) + 24px); }
   .p-meta { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s-4); }
   .p-facts { grid-template-columns: minmax(0, 1fr); }
   /* about island and the new footer: just the name, big and centred */
@@ -500,6 +524,17 @@ body::after {
     </div>
   </section>
 </main>
+
+<!-- phones: the brain bubble (after the intro) and its full-width popup; the same #brain-mini instance moves between them -->
+<div class="brain-bubble" id="brain-bubble" role="button" tabindex="-1" aria-hidden="true" aria-label="Открыть мой мозг" aria-haspopup="dialog" aria-controls="brain-pop">
+  <div id="brain-mini"></div>
+</div>
+<div class="brain-pop" id="brain-pop" role="dialog" aria-modal="true" aria-label="Мой мозг" aria-hidden="true">
+  <div class="brain-pop-stage" id="brain-pop-stage"></div>
+  <button class="brain-pop-close" id="brain-pop-close" type="button" aria-label="Закрыть">
+    <svg viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l12 12M15 3L3 15"/></svg>
+  </button>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -651,12 +686,8 @@ body::after {
   }
   function brainWidth() {
     if (!wide.matches) {
-      // phones: the brain card shrinks over the last R px before it sticks (its stuck top is negative, see CSS)
-      const R = 160, stuck = parseFloat(getComputedStyle(brainCol).top) || 0;
-      const p = Math.min(1, Math.max(0, (stuck + R - brainCol.getBoundingClientRect().top) / R));
-      brainCol.style.setProperty("--cp", p.toFixed(3));
-      brainCol.classList.toggle("is-stuck", p >= 1);
-      bsTarget = lerp(1, 0.62, p); bxTarget = 0;  // 0.62: the brain fits the circle
+      // phones: the brain keeps its size in the intro card; the bubble copy takes over once the card is gone
+      bsTarget = 1; bxTarget = 0;
     }
     else {
       const y = window.scrollY, vh = window.innerHeight;
@@ -669,7 +700,7 @@ body::after {
     if (!bsRaf) bsRaf = requestAnimationFrame(easeScale);
   }
   function easeScale() {
-    const k = reduce.matches || !wide.matches ? 1 : 0.12;  // on phones the scale is tied to the sticky card, so no lag
+    const k = reduce.matches || !wide.matches ? 1 : 0.12;  // phones keep scale 1
     bsNow += (bsTarget - bsNow) * k; bxNow += (bxTarget - bxNow) * k;
     if (Math.abs(bsTarget - bsNow) < 0.0005 && Math.abs(bxTarget - bxNow) < 0.3) { bsNow = bsTarget; bxNow = bxTarget; }
     root.style.setProperty("--bs", bsNow.toFixed(4));
@@ -787,7 +818,8 @@ body::after {
   const tlN = document.getElementById("tl-n");
   const hero = mountBrainHero(root, { dataUrl: "brain/data/" });
   let count = 0, last = 0;
-  const apply = () => { if (count) hero.setSlice(count - last * (count - 1)); };
+  let miniHero = null, popFull = false;  // in the popup the brain is shown whole, not sliced by the scroll
+  const apply = () => { if (!count) return; const n = count - last * (count - 1); hero.setSlice(n); if (miniHero) miniHero.setSlice(popFull ? count : n); };
   window.addEventListener("brain:slice", (e) => { last = e.detail.progress; apply(); });
   const ticks = root.querySelector("[data-ticks]");
   if (ticks) {
@@ -839,6 +871,61 @@ body::after {
     new MutationObserver(show).observe(ticks, { attributes: true, attributeFilter: ["aria-valuemax", "aria-valuenow"] });
     show();
   }
+
+  // Phones: when the intro brain card has scrolled off, a second brain flies in, in a bubble at the top centre;
+  // a tap opens it full width in a popup. Whatever is off screen is paused, so only one brain renders at a time.
+  const phone = matchMedia("(max-width: 767.98px)");
+  const col = document.querySelector(".brain-col");
+  const bubble = document.getElementById("brain-bubble");
+  const mini = document.getElementById("brain-mini");
+  const pop = document.getElementById("brain-pop");
+  const popStage = document.getElementById("brain-pop-stage");
+  const closeBtn = document.getElementById("brain-pop-close");
+  let colVisible = true, colAbove = false, isOpen = false, closeTimer = 0;
+  const ensureMini = () => {
+    if (miniHero) return;
+    miniHero = mountBrainHero(mini, { dataUrl: "brain/data/" });
+    miniHero.setPaused(true);  // loads now, starts drawing (and assembling) when it first appears
+    apply();
+  };
+  function sync() {
+    const on = phone.matches && !colVisible && colAbove && !isOpen;
+    if (on) ensureMini();
+    bubble.classList.toggle("is-on", on);
+    bubble.tabIndex = on ? 0 : -1;
+    bubble.setAttribute("aria-hidden", String(!on));
+    hero.setPaused(phone.matches && !colVisible);
+    if (miniHero) miniHero.setPaused(!on && !isOpen);
+  }
+  new IntersectionObserver(([e]) => {
+    colVisible = e.isIntersecting; colAbove = e.boundingClientRect.bottom <= 0; sync();
+  }).observe(col);
+  phone.addEventListener("change", () => { if (!phone.matches && isOpen) closePop(); sync(); });
+  // load the bubble's brain as soon as the reader starts scrolling, so it is ready by the time the card is gone
+  addEventListener("scroll", function first() { if (phone.matches) { ensureMini(); removeEventListener("scroll", first); } }, { passive: true });
+
+  function openPop() {
+    if (isOpen) return;
+    ensureMini(); clearTimeout(closeTimer);
+    isOpen = popFull = true; popStage.appendChild(mini); apply();
+    pop.classList.add("is-open"); pop.setAttribute("aria-hidden", "false");
+    document.documentElement.classList.add("is-pop");
+    sync(); closeBtn.focus({ preventScroll: true });
+  }
+  function closePop() {
+    if (!isOpen) return;
+    isOpen = false;
+    pop.classList.remove("is-open"); pop.setAttribute("aria-hidden", "true");
+    document.documentElement.classList.remove("is-pop");
+    closeTimer = setTimeout(() => { popFull = false; apply(); bubble.appendChild(mini); sync(); }, 280);  // move back after the fade
+    sync();
+    if (bubble.classList.contains("is-on")) bubble.focus({ preventScroll: true });
+  }
+  bubble.addEventListener("click", openPop);
+  bubble.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPop(); } });
+  closeBtn.addEventListener("click", closePop);
+  pop.addEventListener("click", (e) => { if (e.target === pop) closePop(); });  // a tap on the backdrop closes too
+  addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
 </script>
 </body>
 </html>
