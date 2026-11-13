@@ -327,8 +327,8 @@ body::after {
      the brain band stays dark and melts into the page */
   body { background: var(--island-gap); }
   body::after { display: none; }
-  .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
-  .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
+  .topbar { top: auto; bottom: var(--s-4); }  /* 16px from the bottom edge, as Артем asked (no extra safe-area inset on top of it) */
+  .toast { bottom: 76px; }
   /* the brain lives at the bottom of the intro island (Figma «Mobile — 390»), big, and scrolls away with it.
      Once that card is off the screen, a second brain flies in from the top in a small translucent bubble (top centre);
      tapping the bubble opens the brain full width in a popup. The timeline is a vertical ruler fixed at the right edge. */
