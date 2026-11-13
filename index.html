@@ -362,12 +362,12 @@ body::after {
 
   /* the popup: whole screen, 50% tint + blur, the brain full width; the close button is an icon in a translucent ringed circle */
   .brain-pop {
-    display: grid; place-items: center; position: fixed; inset: 0; z-index: 60;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; position: fixed; inset: 0; z-index: 60;
     background: rgb(5 8 7 / .5); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
     opacity: 0; visibility: hidden; transition: opacity 260ms var(--ease), visibility 0s 260ms;
   }
   .brain-pop.is-open { opacity: 1; visibility: visible; transition: opacity 260ms var(--ease), visibility 0s; }
-  .brain-pop-stage { position: relative; width: 100vw; height: min(100vw, 80vh); scale: .9; transition: scale 360ms cubic-bezier(.3, 1.3, .55, 1); }
+  .brain-pop-stage { position: relative; width: 100vw; height: min(100vw, 100vh - 200px); scale: .9; transition: scale 360ms cubic-bezier(.3, 1.3, .55, 1); }
   .brain-pop.is-open .brain-pop-stage { scale: 1; }
   .brain-pop #brain-mini { --brain-fit: 1.55; pointer-events: auto; }
   .brain-pop #brain-mini .bh-stage { pointer-events: auto; touch-action: none; }  /* in the popup the finger turns the brain */
@@ -379,6 +379,22 @@ body::after {
   }
   .brain-pop-close svg { width: 18px; height: 18px; }
   .brain-pop-close:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 3px; }
+  /* the popup's own horizontal timeline: it moves only the brain's slice, never the page */
+  .pop-tl {
+    position: relative; flex: none; width: calc(100% - 48px); height: 48px;
+    display: flex; flex-direction: column; gap: 10px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+  }
+  .pop-tl.is-dragging { cursor: grabbing; }
+  .pop-tl::before { content: ""; position: absolute; inset: -12px -12px -16px; }  /* bigger grab area */
+  .pop-tl:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 8px; border-radius: 4px; }
+  .pop-tl-n { flex: none; font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .pop-tl-n span { color: var(--fg-3); }
+  .pop-tl-track { position: relative; flex: 1; }
+  .pop-tl-ticks { position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: flex-end; }
+  .pop-tl-ticks i { width: 1px; height: 6px; background: var(--fg-3); opacity: 0.45; transition: height 120ms var(--ease), opacity 120ms var(--ease); }
+  .pop-tl-ticks i.major { height: 10px; opacity: 0.7; }
+  .pop-tl-ticks i.near { height: 12px; opacity: 0.9; }
+  .pop-tl-handle { position: absolute; left: 0; bottom: 0; width: 2px; height: 18px; margin-left: -1px; border-radius: 2px; background: var(--fg); will-change: transform; }
   html.is-pop { overflow: hidden; }
   @media (prefers-reduced-motion: reduce) {
     .brain-bubble, .brain-bubble.is-on { transform: none; transition: opacity 160ms linear, visibility 0s; }
@@ -531,6 +547,10 @@ body::after {
 </div>
 <div class="brain-pop" id="brain-pop" role="dialog" aria-modal="true" aria-label="Мой мозг" aria-hidden="true">
   <div class="brain-pop-stage" id="brain-pop-stage"></div>
+  <div class="pop-tl" id="pop-tl" role="slider" tabindex="0" aria-label="Срез мозга" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="54" aria-valuenow="54">
+    <span class="pop-tl-n" id="pop-tl-n" aria-hidden="true"></span>
+    <span class="pop-tl-track" id="pop-tl-track"><span class="pop-tl-ticks" id="pop-tl-ticks"></span><span class="pop-tl-handle" id="pop-tl-handle"></span></span>
+  </div>
   <button class="brain-pop-close" id="brain-pop-close" type="button" aria-label="Закрыть">
     <svg viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l12 12M15 3L3 15"/></svg>
   </button>
@@ -818,8 +838,8 @@ body::after {
   const tlN = document.getElementById("tl-n");
   const hero = mountBrainHero(root, { dataUrl: "brain/data/" });
   let count = 0, last = 0;
-  let miniHero = null, popFull = false;  // in the popup the brain is shown whole, not sliced by the scroll
-  const apply = () => { if (!count) return; const n = count - last * (count - 1); hero.setSlice(n); if (miniHero) miniHero.setSlice(popFull ? count : n); };
+  let miniHero = null, popFull = false, popF = 0;  // in the popup the slice follows its own timeline (popF 0 = whole brain), not the scroll
+  const apply = () => { if (!count) return; const n = count - last * (count - 1); hero.setSlice(n); if (miniHero) miniHero.setSlice(popFull ? count - popF * (count - 1) : n); };
   window.addEventListener("brain:slice", (e) => { last = e.detail.progress; apply(); });
   const ticks = root.querySelector("[data-ticks]");
   if (ticks) {
@@ -907,7 +927,7 @@ body::after {
   function openPop() {
     if (isOpen) return;
     ensureMini(); clearTimeout(closeTimer);
-    isOpen = popFull = true; popStage.appendChild(mini); apply();
+    isOpen = popFull = true; popF = 0; popStage.appendChild(mini); apply(); buildPopTl(); placePopTl();
     pop.classList.add("is-open"); pop.setAttribute("aria-hidden", "false");
     document.documentElement.classList.add("is-pop");
     sync(); closeBtn.focus({ preventScroll: true });
@@ -921,6 +941,44 @@ body::after {
     sync();
     if (bubble.classList.contains("is-on")) bubble.focus({ preventScroll: true });
   }
+  // The popup timeline: drag or tap to move the slice; arrows step one slice. It never touches the page scroll.
+  const popTl = document.getElementById("pop-tl"), popTrack = document.getElementById("pop-tl-track");
+  const popTicks = document.getElementById("pop-tl-ticks"), popHandle = document.getElementById("pop-tl-handle"), popN = document.getElementById("pop-tl-n");
+  let popTickEls = [], popNear = -1;
+  function buildPopTl() {
+    const n = count || 54;
+    if (popTickEls.length === n) return;
+    popTicks.innerHTML = Array.from({ length: n }, (_, i) => `<i${i % 5 === 0 ? ' class="major"' : ""}></i>`).join("");
+    popTickEls = Array.from(popTicks.children); popNear = -1;
+    popTl.setAttribute("aria-valuemax", n);
+  }
+  function placePopTl() {
+    const n = popTickEls.length || 1, i = Math.round(popF * (n - 1)), sl = n - i;
+    popHandle.style.transform = `translateX(${(popF * popTrack.clientWidth).toFixed(1)}px)`;
+    popTl.setAttribute("aria-valuenow", sl);
+    popN.innerHTML = `${String(sl).padStart(2, "0")}<span>/${n}</span>`;
+    if (i !== popNear) { popTickEls.forEach((t, k) => t.classList.toggle("near", Math.abs(k - i) <= 1)); popNear = i; }
+  }
+  const setPopF = (f) => { popF = Math.min(1, Math.max(0, f)); apply(); placePopTl(); };
+  const popFrac = (x) => { const r = popTrack.getBoundingClientRect(); return (x - r.left) / (r.width || 1); };
+  let popDrag = null;
+  popTl.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const f = popFrac(e.clientX), near = Math.abs(f - popF) * popTrack.clientWidth < 24;  // grabbing the handle keeps the offset
+    popDrag = { id: e.pointerId, off: near ? popF - f : 0 };
+    if (!near) setPopF(f);
+    popTl.setPointerCapture(e.pointerId); popTl.classList.add("is-dragging");
+  });
+  popTl.addEventListener("pointermove", (e) => { if (popDrag && e.pointerId === popDrag.id) setPopF(popFrac(e.clientX) + popDrag.off); });
+  const popEnd = (e) => { if (popDrag && e.pointerId === popDrag.id) { popDrag = null; popTl.classList.remove("is-dragging"); } };
+  popTl.addEventListener("pointerup", popEnd); popTl.addEventListener("pointercancel", popEnd);
+  popTl.addEventListener("keydown", (e) => {
+    const n = popTickEls.length || 54, step = { ArrowRight: 1, ArrowLeft: -1, Home: -n, End: n }[e.key];
+    if (!step) return;
+    e.preventDefault(); setPopF(Math.round(popF * (n - 1) + step) / (n - 1));
+  });
+  addEventListener("resize", () => { if (isOpen) placePopTl(); });
+
   bubble.addEventListener("click", openPop);
   bubble.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPop(); } });
   closeBtn.addEventListener("click", closePop);
