@@ -297,6 +297,7 @@ body::after {
   color: var(--fg); opacity: 0; visibility: hidden;
   transition: opacity 800ms var(--ease), visibility 0s linear 800ms;
 }
+.brain-note { translate: 0 var(--note-dy, 0px); }  /* JS nudges it down if it would touch the intro text */
 .brain-note.is-on { opacity: 1; visibility: visible; transition: opacity 200ms var(--ease); }
 .brain-note-text {
   position: absolute; right: calc(100% - 24px); top: calc(100% + 2px); white-space: nowrap;
@@ -447,7 +448,7 @@ body::after {
       <span class="tl-track" id="tl-track"><span class="tl-ticks" id="tl-ticks"></span><span class="tl-handle" id="tl-handle"></span></span>
     </div>
     <p class="brain-note" id="brain-note">
-      <span class="brain-note-text">Кстати, это мой настоящий мозг</span>
+      <span class="brain-note-text">Кстати, это мой<br>настоящий мозг</span>
       <svg class="brain-note-arrow is-narrow" viewBox="0 0 46 34" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
         <path class="shaft" pathLength="1" d="M1.38 2.24 C 4.5 13, 4.37 11.46, 11 22 C 17.63 32.54, 25.5 18, 34 23.98 C 42.5 29.97, 41.16 29.76, 43.25 31.85"/>
         <path class="head" pathLength="1" d="M37.64 31.22 C 39.73 31.43, 41.82 31.72, 43.7 31.89 C 43.32 29.96, 42.91 28.08, 42.4 26.2"/>
@@ -589,8 +590,27 @@ body::after {
 
   // "Кстати, это мой настоящий мозг": appears once the page settles, goes away after 10 seconds
   const note = document.getElementById("brain-note");
+  // desktop: the note sits left of the brain, in the gap next to the bio; on narrower screens it would touch the
+  // text, so push it down below the bio (or skip it when there is no room left on screen)
+  function placeNote() {
+    note.style.removeProperty("--note-dy");
+    if (!wide.matches) return true;
+    const boxes = [note.querySelector(".brain-note-text").getBoundingClientRect(), note.getBoundingClientRect()];  // text, arrow
+    let dy = 0;
+    document.querySelectorAll(".intro h1, .intro .bio").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      boxes.forEach((box) => {
+        if (box.right + 12 > r.left && box.left - 12 < r.right && box.bottom + 12 > r.top && box.top - 12 < r.bottom) dy = Math.max(dy, r.bottom + 16 - box.top);
+      });
+    });
+    if (Math.max(boxes[0].bottom, boxes[1].bottom) + dy > window.innerHeight - 16) return false;
+    if (dy) note.style.setProperty("--note-dy", dy.toFixed(0) + "px");
+    return true;
+  }
+  window.addEventListener("resize", () => { if (note.classList.contains("is-on") && !placeNote()) note.classList.remove("is-on"); });
   const noteTimer = setTimeout(() => {
     if (window.scrollY > window.innerHeight * 0.2) return;
+    if (!placeNote()) return;
     note.classList.add("is-on");
     setTimeout(() => note.classList.remove("is-on"), 10000);
   }, 1200);
