@@ -166,10 +166,13 @@ body::after {
   font-size: clamp(1.5rem, 2.05vw, 2.75rem); line-height: 1.3; letter-spacing: -0.01em;
 }
 .intro h1 .nw { white-space: nowrap; }
-.hello-badge {
-  display: inline-block; width: 2.85em; height: 2.85em; margin: -0.75em 0.15em; vertical-align: middle;
+.intro h1 { display: flex; flex-direction: column; align-items: flex-start; }  /* Figma «H1» 7:375: the star on top, then two lines */
+.hello-badge { display: block; flex: none; width: 2.83em; height: 2.83em; margin-bottom: 4px; }  /* 68px at the 24px mobile size */
+.hello-badge video {
+  display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none;
+  /* a looping clip of me cut to the star: the clip is square and opaque (light H.264), the star is a mask */
+  -webkit-mask: url("media/star-mask.png") center / 100% 100% no-repeat; mask: url("media/star-mask.png") center / 100% 100% no-repeat;
 }
-.hello-badge img { display: block; width: 100%; height: 100%; }
 .intro p { margin: 0; max-width: 52ch; color: var(--fg-2); }
 .intro .bio { font-size: var(--t-h3); line-height: 1.55; max-width: 44ch; }
 /* company names: white, a touch heavier, favicon after the name (logos/<slug>.svg, letter fallback) */
@@ -486,7 +489,7 @@ body::after {
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
     <p class="eyebrow mono">продуктовый дизайнер</p>
-    <h1 id="intro-title"><span class="nw">Привет! Меня</span> <span class="hello-badge" aria-hidden="true"><img src="hello-badge.png" alt="" width="240" height="240"></span> <span class="nw">зовут Артём</span></h1>
+    <h1 id="intro-title"><span class="hello-badge" aria-hidden="true"><video src="media/star.mp4" poster="media/star-poster.jpg" width="240" height="240" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span><span class="nw">Привет! Меня зовут </span><span class="nw">Артём и я дизайнер</span></h1>
     <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
   </section>
 
@@ -652,6 +655,10 @@ body::after {
   // Brain size: 1/2 of the screen on the intro → 2/5 once most of the intro has passed → 1/3 on the projects.
   // The canvas keeps its size (resizing WebGL on every frame made it jitter); only a CSS scale is eased.
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+  // the star clip in the greeting: still (first frame) for people who ask for less motion
+  const starClip = document.querySelector(".hello-badge video");
+  const starMotion = () => { if (!starClip) return; if (reduce.matches) { starClip.pause(); starClip.currentTime = 0; } else starClip.play().catch(() => {}); };
+  reduce.addEventListener("change", starMotion); starMotion();
 
   // "Кстати, это мой настоящий мозг": appears once the page settles, goes away after 10 seconds
   const note = document.getElementById("brain-note");
