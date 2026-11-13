@@ -332,7 +332,7 @@ body::after {
   /* the brain lives at the bottom of the intro island (Figma «Mobile — 390»), big, and scrolls away with it.
      Once that card is off the screen, a second brain flies in from the top in a small translucent bubble (top centre);
      tapping the bubble opens the brain full width in a popup. The timeline is a vertical ruler fixed at the right edge. */
-  :root { --safe-t: env(safe-area-inset-top, 0px); --card-pt: 24px; --card-pb: 24px; --brain-slot: calc(87.5vw - 48px);  /* card = 87.5vw, so the brain spans ~80% of the screen width */ --bubble-d: 112px; }
+  :root { --safe-t: env(safe-area-inset-top, 0px); --card-pt: 24px; --card-pb: 40px; --brain-slot: calc(76.5vw - 48px);  /* brain area = 76.5vw, so the brain spans ~70% of the screen width; pb 40 = 16px more air under it */ --bubble-d: 112px; }
   .brain-col {
     position: relative; z-index: 2; inset: auto; width: auto;
     height: calc(var(--card-pt) + var(--brain-slot) + var(--card-pb));
@@ -410,7 +410,7 @@ body::after {
   .brain-note-arrow { display: none; }
   .brain-note-arrow.is-narrow { display: block; transform: none; }
   .brain-note-text {
-    right: auto; left: -16px; top: auto; bottom: calc(100% + 3px); width: 128px; white-space: normal;
+    right: auto; left: -16px; top: auto; bottom: calc(100% + 3px); width: max-content; white-space: nowrap;
     font-size: 17px; line-height: 1.05; transform: rotate(-3deg); transform-origin: left top;
   }
   /* timeline: a vertical ruler fixed at the right edge (in the cards' 24px side padding), 40% of the screen tall,
@@ -502,7 +502,7 @@ body::after {
       <span class="tl-track" id="tl-track"><span class="tl-ticks" id="tl-ticks"></span><span class="tl-handle" id="tl-handle"></span></span>
     </div>
     <p class="brain-note" id="brain-note">
-      <span class="brain-note-text">Кстати, это мой<br>настоящий мозг</span>
+      <span class="brain-note-text">Кстати, это реальное<br>МРТ моего мозга</span>
       <svg class="brain-note-arrow is-narrow" viewBox="0 0 46 34" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
         <path class="shaft" pathLength="1" d="M1.38 2.24 C 4.5 13, 4.37 11.46, 11 22 C 17.63 32.54, 25.5 18, 34 23.98 C 42.5 29.97, 41.16 29.76, 43.25 31.85"/>
         <path class="head" pathLength="1" d="M37.64 31.22 C 39.73 31.43, 41.82 31.72, 43.7 31.89 C 43.32 29.96, 42.91 28.08, 42.4 26.2"/>
@@ -661,7 +661,7 @@ body::after {
   const starMotion = () => { if (!starClip) return; if (reduce.matches) { starClip.pause(); starClip.currentTime = 0; } else starClip.play().catch(() => {}); };
   reduce.addEventListener("change", starMotion); starMotion();
 
-  // "Кстати, это мой настоящий мозг": appears once the page settles, goes away after 10 seconds
+  // "Кстати, это реальное МРТ моего мозга": appears once the page settles, goes away after 10 seconds
   const note = document.getElementById("brain-note");
   // desktop: the note sits left of the brain, in the gap next to the bio; on narrower screens it would touch the
   // text, so push it down below the bio (or skip it when there is no room left on screen)
