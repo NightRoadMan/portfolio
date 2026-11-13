@@ -159,15 +159,15 @@ body::after {
 
 /* intro */
 .intro { display: grid; gap: var(--s-8); min-height: calc(100vh - var(--header-h) - var(--s-24) - var(--s-24)); align-content: center; padding-bottom: var(--s-24); }
-.eyebrow { color: var(--fg-3); }
 .intro h1 {
   /* wide grotesque, light; one line on desktop with the photo badge in the middle */
   margin: 0; font-family: var(--font-head); font-weight: 300;
   font-size: clamp(1.5rem, 2.05vw, 2.75rem); line-height: 1.3; letter-spacing: -0.01em;
 }
 .intro h1 .nw { white-space: nowrap; }
-.intro h1 { display: flex; flex-direction: column; align-items: flex-start; }  /* Figma «H1» 7:375: the star on top, then two lines */
-.hello-badge { display: block; flex: none; width: 2.83em; height: 2.83em; margin-bottom: 4px; }  /* 68px at the 24px mobile size */
+.intro h1 { display: flex; flex-direction: column; align-items: flex-start; }  /* two lines: «Привет! Меня ⭐ зовут» / «Артём и я дизайнер» */
+.h1-l1 { display: block; white-space: nowrap; }
+.hello-badge { display: inline-block; width: 2.85em; height: 2.85em; margin: -0.3em 0.15em; vertical-align: middle; }  /* tall enough not to touch the second line */
 .hello-badge video {
   display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none;
   /* a looping clip of me cut to the star: the clip is square and opaque (light H.264), the star is a mask */
@@ -442,8 +442,9 @@ body::after {
   }
   /* intro island: heading and bio, the brain card continues it below (so no bottom corners here) */
   .intro { min-height: 0; gap: var(--s-6); padding: var(--s-6) var(--s-6) 1px; border-radius: var(--island-r) var(--island-r) 0 0; }
-  .intro .eyebrow { display: none; }
-  .hello-badge { width: 5.66em; height: 5.66em; }  /* twice the Figma size on phones (136px) */
+  /* phones (Figma «H1» 7:375): the star on its own row above the two lines, twice the Figma size (136px) */
+  .h1-l1 { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 0.3em; }
+  .hello-badge { grid-column: 1 / -1; grid-row: 1; width: 5.66em; height: 5.66em; margin: 0 0 4px; }
   /* every project is its own island; the section label sits on the first one */
   .work { display: grid; gap: 0; padding: 0; background: none; border-radius: 0; }
   #work-list { display: grid; gap: var(--island-gap-h); }
@@ -489,8 +490,7 @@ body::after {
 
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
-    <p class="eyebrow mono">продуктовый дизайнер</p>
-    <h1 id="intro-title"><span class="hello-badge" aria-hidden="true"><video src="media/star.mp4" poster="media/star-poster.jpg" width="384" height="384" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span><span class="nw">Привет! Меня зовут </span><span class="nw">Артём и я дизайнер</span></h1>
+    <h1 id="intro-title"><span class="h1-l1"><span class="nw">Привет! Меня</span> <span class="hello-badge" aria-hidden="true"><video src="media/star.mp4" poster="media/star-poster.jpg" width="384" height="384" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span> <span class="nw">зовут</span></span> <span class="nw">Артём и я дизайнер</span></h1>
     <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
   </section>
 
@@ -922,7 +922,7 @@ body::after {
     bubble.classList.toggle("is-on", on);
     bubble.tabIndex = on ? 0 : -1;
     bubble.setAttribute("aria-hidden", String(!on));
-    hero.setPaused(phone.matches && !colVisible);
+    hero.setPaused(phone.matches && (!colVisible || isOpen));
     if (miniHero) miniHero.setPaused(!on && !isOpen);
   }
   new IntersectionObserver(([e]) => {
@@ -988,6 +988,17 @@ body::after {
   addEventListener("resize", () => { if (isOpen) placePopTl(); });
 
   bubble.addEventListener("click", openPop);
+  // phones: a tap on the intro brain opens the same popup (a drag still turns it, a vertical swipe still scrolls)
+  let tap = null;
+  root.addEventListener("pointerdown", (e) => { tap = phone.matches ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null; }, true);
+  root.addEventListener("pointerup", (e) => {
+    if (!tap || e.pointerId !== tap.id) return;
+    const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y), quick = performance.now() - tap.t < 350;
+    tap = null;
+    if (moved < 8 && quick) openPop();
+  }, true);
+  root.addEventListener("pointercancel", () => { tap = null; }, true);
+  if (phone.matches) setTimeout(ensureMini, 1500);  // have the popup brain ready even before the first scroll
   bubble.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPop(); } });
   closeBtn.addEventListener("click", closePop);
   pop.addEventListener("click", (e) => { if (e.target === pop) closePop(); });  // a tap on the backdrop closes too
