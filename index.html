@@ -6,12 +6,13 @@
 <title>Портфолио Артема</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Unbounded:wght@300&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Unbounded:wght@300;700&display=swap">
 <style>
 /* Layout (Scandinavian: one quiet grid, lots of air, type does the work):
    desktop — content on the left, the BrainTM brain fixed on the right; its width goes
    1/2 of the screen on the intro → 2/5 → 1/3 once the projects start.
-   narrow  — the brain is a sticky band under the centred header, 1/3 of the screen tall.
+   narrow  — the brain sits big at the bottom of the intro island; on scroll it shrinks and sticks to the top
+             as a translucent, blurred card, and everything else scrolls under it.
    Colour: black, white, greys only. Type: Medeo Sans + Medeo Mono (SIL OFL, self-hosted). */
 @font-face { font-family: "Medeo Sans"; src: url("fonts/MedeoSansVariable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "Medeo Mono"; src: url("fonts/MedeoMonoVariable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
@@ -153,7 +154,7 @@ body::after {
   padding-top: calc(var(--header-h) + var(--s-24));
   padding-bottom: var(--s-24);
 }
-.intro, .work, .about { max-width: calc(100vw - 40vw - var(--gutter) - var(--gap)); pointer-events: auto; }  /* narrower than the brain lane, for air */
+.intro, .work, .about { position: relative; z-index: 1; max-width: calc(100vw - 40vw - var(--gutter) - var(--gap)); pointer-events: auto; }  /* narrower than the brain lane, for air */
 .intro { max-width: calc(50vw - var(--gutter) - var(--gap)); }
 
 /* intro */
@@ -245,6 +246,7 @@ body::after {
 .contact .faint { font-family: var(--font-mono); font-size: var(--t-meta); }
 .contact:hover .faint { color: var(--fg); }
 .foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); padding-top: var(--s-16); color: var(--fg-3); }
+.foot-sign, .only-narrow { display: none; }
 
 .toast {
   position: fixed; z-index: 40; left: 50%; transform: translate(-50%, 8px);
@@ -279,6 +281,7 @@ body::after {
 }
 .brain-note-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: scaleY(-1); }
 .brain-note-arrow path { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.brain-note-arrow.is-narrow { display: none; }
 .brain-note.is-on .brain-note-text { clip-path: inset(-20% -5% -20% 0); transition: clip-path 1500ms cubic-bezier(.45,.1,.55,.95) 150ms; }
 .brain-note.is-on .shaft { stroke-dashoffset: 0; transition: stroke-dashoffset 800ms cubic-bezier(.6,.05,.3,1) 1550ms; }
 .brain-note.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 240ms ease-out 2300ms; }
@@ -297,38 +300,47 @@ body::after {
   body::after { display: none; }
   .topbar { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-4)); }
   .toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
-  /* the brain is a header card: fixed at the top, full width, rounded only at the bottom, 8px grey gap under it.
-     Height: 70% of the old 1/3 band, snapped to 8px in CSS (no JS, so embedded viewers can't skew it).
-     The canvas never reaches the rounded corners (the ruler sits below it), so nothing has to clip WebGL. */
-  :root { --brain-h: 23.333vh; --tl-h: 40px; --safe-t: env(safe-area-inset-top, 0px); }
-  @supports (height: 1svh) { :root { --brain-h: 23.333svh; } }
-  @supports (width: round(nearest, 10px, 8px)) { :root { --brain-h: max(160px, round(nearest, 23.333vh, 8px)); } }
-  @supports (width: round(nearest, 10svh, 8px)) { :root { --brain-h: max(160px, round(nearest, 23.333svh, 8px)); } }
+  /* the brain lives at the bottom of the intro island (Figma «Mobile — 390»): big, ruler under it. On scroll the
+     card sticks to the top (sticky, so the compositor keeps it in place), the brain eases from 1 to 0.8 and the card
+     turns translucent with a backdrop blur (Figma «Mobile — 391»); the projects scroll under it.
+     The card keeps its height in the flow (no layout shift): it sticks with its top --card-cut above the screen,
+     so only the bottom 204px show, and its background starts --card-cut lower. JS sets --cp (0 → 1). */
+  :root { --safe-t: env(safe-area-inset-top, 0px); --tl-h: 40px; --card-pt: 24px; --brain-slot: 186px; --card-cut: 46px; }
   .brain-col {
-    z-index: 10; top: 0; bottom: auto; left: 0; right: 0; width: auto;
-    height: calc(var(--safe-t) + var(--brain-h));
+    position: sticky; z-index: 10; inset: auto; width: auto;
+    top: calc(var(--safe-t) - var(--card-cut));
+    height: calc(var(--card-pt) + var(--brain-slot) + var(--tl-h));
+    margin-top: calc(-1 * var(--island-gap-h) - 1px);  /* touches the intro island (1px overlap, no seam) */
   }
-  /* the cards scroll only below the header: a grey layer hides everything behind the header, so its rounded
-     bottom corners always read; the black card is drawn on top of it (both behind the brain and the ruler) */
-  .brain-col::before, .brain-col::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; }
-  .brain-col::before { bottom: 0; background: var(--island-gap); }  /* grey only behind the rounded corners, no strip below */
-  .brain-col::after { bottom: 0; background: var(--bg); border-radius: 0 0 var(--island-r) var(--island-r); }
-  #brain { top: var(--safe-t); bottom: var(--tl-h); height: auto; }  /* the component's .bh sets height:100%, which overrode bottom and ran the canvas over the rounded corners */
-  #brain { --brain-fit: 1.2; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.8; }
-  #brain .bh-stage { touch-action: none; }
+  .brain-col::before, .brain-col::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; top: calc(var(--cp, 0) * var(--card-cut));
+    border-radius: calc(var(--cp, 0) * var(--island-r)) calc(var(--cp, 0) * var(--island-r)) var(--island-r) var(--island-r);
+    pointer-events: none;
+  }
+  /* blur first (progressive: strongest at the top, none at the bottom, like the Figma effect), then the 80% tint */
+  .brain-col::after {
+    z-index: -2; opacity: var(--cp, 0);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(#000 30%, transparent); mask-image: linear-gradient(#000 30%, transparent);
+  }
+  .brain-col::before { z-index: -1; background: rgb(5 8 7 / calc(1 - 0.2 * var(--cp, 0))); }
+  #brain { top: 10px; bottom: var(--tl-h); height: auto; }  /* the component's .bh sets height:100%, which would override bottom */
+  #brain { --brain-fit: 1.73; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.85; }
+  #brain .bh-stage { transform-origin: 50% 100%; touch-action: pan-y; }  /* shrinks onto the ruler; in the intro a vertical swipe still scrolls */
+  .brain-col.is-stuck #brain .bh-stage { touch-action: none; }          /* stuck at the top, the finger belongs to the brain */
   @media (max-width: 359.98px) { .brain-note { display: none; } }
-  /* the finger belongs to the brain here: rotate both ways, no scroll hijack */
   #brain .bh-scale, .slice-counter { display: none; }
-  /* note on the left of the island, arrow points right at the brain */
-  .brain-note { left: 16px; top: calc(var(--safe-t) + 18px); bottom: auto; width: 46px; height: 34px; }
-  .brain-note .brain-note-arrow { transform: none; }
+  /* handwritten note: text on the left above the brain, the arrow under it bends right into the brain */
+  .brain-note { left: 39px; top: 49px; bottom: auto; width: 46px; height: 34px; }
+  .brain-note-arrow { display: none; }
+  .brain-note-arrow.is-narrow { display: block; transform: none; }
   .brain-note-text {
-    right: auto; left: 0; top: calc(100% + 4px); bottom: auto; width: 9.5em; white-space: normal;
+    right: auto; left: -16px; top: auto; bottom: calc(100% + 3px); width: 128px; white-space: normal;
     font-size: 17px; line-height: 1.05; transform: rotate(-3deg); transform-origin: left top;
   }
-  /* timeline: a horizontal ruler across the bottom of the island; drag it to scroll the page */
+  /* timeline: a horizontal ruler across the bottom of the card; drag it to scroll the page */
   .tl {
-    position: absolute; z-index: 3; left: var(--s-4); right: var(--s-4); bottom: 0; height: var(--tl-h);
+    position: absolute; z-index: 3; left: var(--s-6); right: var(--s-6); bottom: 0; height: var(--tl-h);
     display: flex; align-items: center; gap: var(--s-3);
     touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none;
   }
@@ -343,25 +355,38 @@ body::after {
   .tl-handle { position: absolute; top: 50%; left: 0; width: 2px; height: 18px; margin: -9px 0 0 -1px; border-radius: 2px; background: var(--fg); will-change: transform; }
   .content {
     display: grid; gap: var(--island-gap-h);
-    padding: calc(var(--safe-t) + var(--brain-h) + var(--island-gap-h)) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
+    padding: var(--safe-t) 0 calc(env(safe-area-inset-bottom, 0px) + 88px);
   }
   .intro, .work, .about {
     max-width: none; background: var(--bg); border-radius: var(--island-r);
     padding: var(--s-8) var(--gutter);
   }
-  .intro { min-height: 0; }
+  /* intro island: heading and bio, the brain card continues it below (so no bottom corners here) */
+  .intro { min-height: 0; gap: var(--s-6); padding: var(--s-6) var(--s-6) 1px; border-radius: var(--island-r) var(--island-r) 0 0; }
+  .intro .eyebrow { display: none; }
   /* every project is its own island; the section label sits on the first one */
   .work { display: grid; gap: 0; padding: 0; background: none; border-radius: 0; }
   #work-list { display: grid; gap: var(--island-gap-h); }
-  .work > .label { padding: var(--s-8) var(--gutter) 0; background: var(--bg); border-radius: var(--island-r) var(--island-r) 0 0; }
+  .work > .label { padding: var(--s-6) var(--s-6) 0; background: var(--bg); border-radius: var(--island-r) var(--island-r) 0 0; color: var(--fg); }
+  .only-narrow { display: inline; }
+  #work-count { display: none; }
   #work-list > .project:first-child { border-top-left-radius: 0; border-top-right-radius: 0; }
-  .project { background: var(--bg); border-radius: var(--island-r); padding: var(--s-8) var(--gutter) !important; }
+  .project { background: var(--bg); border-radius: var(--island-r); padding: var(--s-6) !important; }
   .project + .project { border-top: 0; }
   .work > .label, .about > .label { padding-top: 0; border-top: 0; }
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
-  .project { padding-block: var(--s-8) var(--s-16); scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--brain-h) + var(--s-6)); }
+  .project { scroll-margin-top: calc(var(--safe-t) + 204px + var(--island-gap-h)); }
   .p-meta { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s-4); }
-  .p-facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .p-facts { grid-template-columns: minmax(0, 1fr); }
+  /* about island and the new footer: just the name, big and centred */
+  .about { padding: var(--s-6) var(--gutter); }
+  .foot { padding-top: var(--s-4); justify-content: center; }
+  .foot > span { display: none; }
+  .about .foot-sign {
+    display: block; margin: 0; width: 100%; text-align: center; color: var(--fg);
+    font-family: var(--font-head); font-weight: 700; font-size: clamp(1.25rem, 7.5vw, 2.25rem); line-height: 1.3; letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
 }
 </style>
 </head>
@@ -380,21 +405,6 @@ body::after {
   </div>
 </header>
 
-<aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
-  <div id="brain"></div>
-  <div class="slice-counter" id="slice-counter" aria-hidden="true"></div>
-  <div class="tl" id="tl" role="scrollbar" aria-controls="top" aria-orientation="horizontal" aria-label="Хронология: прокрутка страницы" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-    <span class="tl-n" id="tl-n"></span>
-    <span class="tl-track" id="tl-track"><span class="tl-ticks" id="tl-ticks"></span><span class="tl-handle" id="tl-handle"></span></span>
-  </div>
-  <p class="brain-note" id="brain-note">
-    <span class="brain-note-text">Кстати, это мой настоящий мозг</span>
-    <svg class="brain-note-arrow" viewBox="0 0 110 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path class="shaft" pathLength="1" d="M6 6 C 22 2, 44 6, 58 20 C 72 34, 70 46, 84 58 C 92 65, 99 70, 104 75"/>
-      <path class="head" pathLength="1" d="M90 74 C 95 74.5, 100 75.2, 104.5 75.6 C 103.6 71, 102.6 66.5, 101.4 62"/>
-    </svg>
-  </p>
-</aside>
 
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
@@ -403,8 +413,28 @@ body::after {
     <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
   </section>
 
+  <aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
+    <div id="brain"></div>
+    <div class="slice-counter" id="slice-counter" aria-hidden="true"></div>
+    <div class="tl" id="tl" role="scrollbar" aria-controls="top" aria-orientation="horizontal" aria-label="Хронология: прокрутка страницы" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+      <span class="tl-n" id="tl-n"></span>
+      <span class="tl-track" id="tl-track"><span class="tl-ticks" id="tl-ticks"></span><span class="tl-handle" id="tl-handle"></span></span>
+    </div>
+    <p class="brain-note" id="brain-note">
+      <span class="brain-note-text">Кстати, это мой настоящий мозг</span>
+      <svg class="brain-note-arrow is-narrow" viewBox="0 0 46 34" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path class="shaft" pathLength="1" d="M1.38 2.24 C 4.5 13, 4.37 11.46, 11 22 C 17.63 32.54, 25.5 18, 34 23.98 C 42.5 29.97, 41.16 29.76, 43.25 31.85"/>
+        <path class="head" pathLength="1" d="M37.64 31.22 C 39.73 31.43, 41.82 31.72, 43.7 31.89 C 43.32 29.96, 42.91 28.08, 42.4 26.2"/>
+      </svg>
+      <svg class="brain-note-arrow" viewBox="0 0 110 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path class="shaft" pathLength="1" d="M6 6 C 22 2, 44 6, 58 20 C 72 34, 70 46, 84 58 C 92 65, 99 70, 104 75"/>
+        <path class="head" pathLength="1" d="M90 74 C 95 74.5, 100 75.2, 104.5 75.6 C 103.6 71, 102.6 66.5, 101.4 62"/>
+      </svg>
+    </p>
+  </aside>
+
   <section class="work" id="work" aria-labelledby="work-title">
-    <h2 class="label" id="work-title"><span>проекты</span><span id="work-count"></span></h2>
+    <h2 class="label" id="work-title"><span><span class="only-narrow">избранные </span>проекты</span><span id="work-count"></span></h2>
     <div id="work-list"></div>
   </section>
 
@@ -429,6 +459,7 @@ body::after {
     <div class="foot mono">
       <span>© 2026 артем</span>
       <span>контент временный</span>
+      <p class="foot-sign">© 2026 Артем Ли</p>
     </div>
   </section>
 </main>
@@ -531,7 +562,14 @@ body::after {
     return { s: d / d0, x: (left + right) / 2 - centre };
   }
   function brainWidth() {
-    if (!wide.matches) { bsTarget = 1; bxTarget = 0; }
+    if (!wide.matches) {
+      // phones: the brain card shrinks over the last R px before it sticks (its stuck top is negative, see CSS)
+      const R = 160, stuck = parseFloat(getComputedStyle(brainCol).top) || 0;
+      const p = Math.min(1, Math.max(0, (stuck + R - brainCol.getBoundingClientRect().top) / R));
+      brainCol.style.setProperty("--cp", p.toFixed(3));
+      brainCol.classList.toggle("is-stuck", p >= 1);
+      bsTarget = lerp(1, 0.8, p); bxTarget = 0;
+    }
     else {
       const y = window.scrollY, vh = window.innerHeight;
       const b = Math.max(1, intro.offsetTop + intro.offsetHeight * 0.6 - vh * 0.5);
@@ -543,7 +581,7 @@ body::after {
     if (!bsRaf) bsRaf = requestAnimationFrame(easeScale);
   }
   function easeScale() {
-    const k = reduce.matches ? 1 : 0.12;
+    const k = reduce.matches || !wide.matches ? 1 : 0.12;  // on phones the scale is tied to the sticky card, so no lag
     bsNow += (bsTarget - bsNow) * k; bxNow += (bxTarget - bxNow) * k;
     if (Math.abs(bsTarget - bsNow) < 0.0005 && Math.abs(bxTarget - bxNow) < 0.3) { bsNow = bsTarget; bxNow = bxTarget; }
     root.style.setProperty("--bs", bsNow.toFixed(4));

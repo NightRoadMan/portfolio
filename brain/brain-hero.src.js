@@ -271,9 +271,9 @@ export function mountBrainHero(root, opts = {}) {
   }
 
   /* scene */
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });  // transparent: the page shows through (translucent brain card on phones)
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setClearColor(C.clear, 1);
+  renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.localClippingEnabled = true;
   el.stage.appendChild(renderer.domElement);
