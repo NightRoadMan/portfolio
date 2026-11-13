@@ -443,6 +443,7 @@ body::after {
   /* intro island: heading and bio, the brain card continues it below (so no bottom corners here) */
   .intro { min-height: 0; gap: var(--s-6); padding: var(--s-6) var(--s-6) 1px; border-radius: var(--island-r) var(--island-r) 0 0; }
   .intro .eyebrow { display: none; }
+  .hello-badge { width: 5.66em; height: 5.66em; }  /* twice the Figma size on phones (136px) */
   /* every project is its own island; the section label sits on the first one */
   .work { display: grid; gap: 0; padding: 0; background: none; border-radius: 0; }
   #work-list { display: grid; gap: var(--island-gap-h); }
@@ -489,7 +490,7 @@ body::after {
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
     <p class="eyebrow mono">продуктовый дизайнер</p>
-    <h1 id="intro-title"><span class="hello-badge" aria-hidden="true"><video src="media/star.mp4" poster="media/star-poster.jpg" width="240" height="240" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span><span class="nw">Привет! Меня зовут </span><span class="nw">Артём и я дизайнер</span></h1>
+    <h1 id="intro-title"><span class="hello-badge" aria-hidden="true"><video src="media/star.mp4" poster="media/star-poster.jpg" width="384" height="384" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span><span class="nw">Привет! Меня зовут </span><span class="nw">Артём и я дизайнер</span></h1>
     <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
   </section>
 
