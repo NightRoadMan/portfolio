@@ -271,8 +271,8 @@ body::after {
   min-height: 52px; padding: 0; background: none; border: 0; color: var(--fg);
   font: inherit; font-size: var(--t-body); text-align: left; cursor: pointer;
 }
-.contact .faint { font-family: var(--font-mono); font-size: var(--t-meta); }
-.contact:hover .faint { color: var(--fg); }
+.contact .contact-v { color: var(--accent); text-align: right; overflow-wrap: anywhere; transition: opacity 120ms var(--ease); }  /* label white, value mint */
+.contact:hover .contact-v { opacity: .75; }
 .foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); padding-top: var(--s-16); color: var(--fg-3); }
 .foot-sign, .only-narrow { display: none; }
 
@@ -540,10 +540,11 @@ body::after {
     <div class="cols" id="contact">
       <div class="mono faint">связь со мной</div>
       <ul class="contacts">
-        <li><button class="contact" type="button" data-copy="hello@example.com">hello@example.com <span class="faint">скопировать</span></button></li>
-        <li><a class="contact" href="https://t.me/" target="_blank" rel="noopener">Telegram <span class="faint">@artem ↗</span></a></li>
-        <li><a class="contact" href="https://www.linkedin.com/" target="_blank" rel="noopener">LinkedIn <span class="faint">↗</span></a></li>
-        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf">Резюме, PDF <span class="faint">скачать ↓</span></a></li>
+        <li><button class="contact" type="button" data-copy="kvadrolee@mail.ru" aria-label="Email kvadrolee@mail.ru, скопировать">Email <span class="contact-v">kvadrolee@mail.ru</span></button></li>
+        <li><a class="contact" href="https://t.me/nightroadman" target="_blank" rel="noopener">Telegram <span class="contact-v">@nightroadman</span></a></li>
+        <li><a class="contact" href="https://www.instagram.com/dixset/" target="_blank" rel="noopener">Instagram <span class="contact-v">@dixset</span></a></li>
+        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf">Резюме <span class="contact-v">Скачать CV</span></a></li>
+        <li><a class="contact" href="https://dribbble.com/nightroadman" target="_blank" rel="noopener">Dribbble <span class="contact-v">Nightroadman</span></a></li>
       </ul>
     </div>
     <div class="foot mono">
@@ -851,7 +852,7 @@ body::after {
   function say(msg) { toast.textContent = msg; toast.classList.add("is-on"); clearTimeout(tt); tt = setTimeout(() => toast.classList.remove("is-on"), 1800); }
   document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
     const v = b.getAttribute("data-copy");
-    const fallback = () => { const r = document.createRange(); r.selectNodeContents(b.firstChild); const s = getSelection(); s.removeAllRanges(); s.addRange(r); say("выделил адрес, скопируйте вручную"); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(b.querySelector(".contact-v") || b.firstChild); const s = getSelection(); s.removeAllRanges(); s.addRange(r); say("выделил адрес, скопируйте вручную"); };
     try { navigator.clipboard.writeText(v).then(() => say("почта скопирована"), fallback); } catch (e) { fallback(); }
   }));
   document.querySelectorAll('[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
