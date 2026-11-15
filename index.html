@@ -358,6 +358,8 @@ body::after {
     transition: transform 640ms cubic-bezier(.3, 1.4, .55, 1), opacity 120ms linear, visibility 0s;
   }
   .brain-bubble:active { scale: .94; }
+  .brain-bubble.is-drag:active { scale: 1; }
+  .brain-bubble #brain-mini, .brain-bubble #brain-mini .bh-stage { pointer-events: auto; touch-action: pan-y; }  /* a sideways drag turns the bubble brain, a vertical swipe still scrolls, a tap opens the popup */
   .brain-bubble:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 3px; }
   #brain-mini { position: absolute; inset: 0; pointer-events: none; --brain-fit: 1.3; --brain-offset-x: 0; --brain-offset-y: 0; --brain-glow: 0.5; --brain-drag: 1.3; --brain-spin: 1.3; --bh-mono: var(--font-mono); }
   #brain-mini * { pointer-events: none; }
@@ -997,7 +999,19 @@ body::after {
   });
   addEventListener("resize", () => { if (isOpen) placePopTl(); });
 
-  bubble.addEventListener("click", openPop);
+  // the bubble: a drag turns the brain, only a short still tap opens the popup
+  let btap = null;
+  bubble.addEventListener("pointerdown", (e) => { btap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false }; bubble.classList.remove("is-drag"); }, true);
+  bubble.addEventListener("pointermove", (e) => {
+    if (btap && e.pointerId === btap.id && !btap.moved && Math.hypot(e.clientX - btap.x, e.clientY - btap.y) >= 8) { btap.moved = true; bubble.classList.add("is-drag"); }
+  }, true);
+  bubble.addEventListener("pointerup", (e) => {
+    if (!btap || e.pointerId !== btap.id) return;
+    const ok = !btap.moved && Math.hypot(e.clientX - btap.x, e.clientY - btap.y) < 8 && performance.now() - btap.t < 400;
+    btap = null; bubble.classList.remove("is-drag");
+    if (ok) openPop();
+  }, true);
+  bubble.addEventListener("pointercancel", () => { btap = null; bubble.classList.remove("is-drag"); }, true);
   // phones: a tap on the intro brain opens the same popup (a drag still turns it, a vertical swipe still scrolls)
   let tap = null;
   root.addEventListener("pointerdown", (e) => { tap = phone.matches ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null; }, true);
