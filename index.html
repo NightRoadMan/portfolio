@@ -264,6 +264,28 @@ body::after {
 .about .text { display: grid; gap: var(--s-4); }
 .about p { margin: 0; max-width: 58ch; color: var(--fg-2); }
 .about p strong { color: var(--fg); font-weight: var(--w-regular); }
+/* career: rows like the contacts list (52px, hairlines); a click opens the details, the current years are mint */
+.career { border-top: 1px solid var(--line); }
+.career details { border-bottom: 1px solid var(--line); }
+.career summary { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr) auto 14px; align-items: center; gap: var(--s-4); min-height: 52px; cursor: pointer; }
+.career summary::-webkit-details-marker { display: none; }
+.cr-co { min-width: 0; color: var(--fg); }
+.cr-role { margin-left: .5em; color: var(--fg-3); }
+.career .is-past .cr-co { color: var(--fg-2); }
+.cr-yr { font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; text-transform: uppercase; font-variant-numeric: tabular-nums; color: var(--fg-3); text-align: right; }
+.cr-yr.is-now { color: var(--accent); }
+.cr-pm { position: relative; width: 14px; height: 14px; color: var(--fg-3); }
+.cr-pm::before, .cr-pm::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: currentColor; }
+.cr-pm::after { transform: rotate(90deg); transition: transform 200ms var(--ease); }
+.career details[open] .cr-pm::after { transform: rotate(0deg); }
+.career summary:hover .cr-pm { color: var(--fg); }
+.cr-more { display: grid; gap: var(--s-3); padding-bottom: var(--s-6); }
+.cr-more p { font-size: var(--t-secondary); }
+.cr-steps { display: grid; margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--line-strong); }
+.cr-steps li { display: flex; justify-content: space-between; gap: var(--s-4); padding: var(--s-1) 0 var(--s-1) var(--s-4); font-size: var(--t-secondary); color: var(--fg-2); }
+.cr-steps li:first-child { color: var(--fg); }
+@media (max-width: 767.98px) { .cr-role { display: block; margin-left: 0; font-size: var(--t-secondary); } }
+@media (prefers-reduced-motion: reduce) { .cr-pm::after { transition: none; } }
 .contacts { display: grid; gap: 0; margin: var(--s-4) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .contacts li { border-bottom: 1px solid var(--line); }
 .contact {
@@ -529,12 +551,47 @@ body::after {
   </section>
 
   <section class="about" id="about" aria-labelledby="about-title">
-    <h2 class="label" id="about-title"><span>обо мне</span><span>2017 — 2026</span></h2>
+    <h2 class="label" id="about-title"><span>обо мне</span><span>7 лет · 2019 — 2026</span></h2>
+    <div class="cols">
+      <div class="mono faint">подход</div>
+      <div class="text">
+        <p><strong>Веду продукт от исследования и первых идей до прототипа, тестов и запуска.</strong> Понимаю, как устроена разработка, поэтому мои решения не остаются на макетах. Умею просто рассказывать о сложном: через прототипы, презентации и визуальные истории.</p>
+        <p>В НаПоправку курирую отдел продуктового дизайна и построил дизайн-систему на семантических токенах. До этого два года руководил дизайном на проектах Syngenta в EPAM: 14 дизайнеров на 12 проектах. Стоял у истоков дизайн-системы SynUI, сейчас на ней больше 30 внутренних B2B-продуктов. Участвовал в шести пресейлах, четыре выиграли и принесли EPAM новые проекты.</p>
+        <p>Дизайн-системы и токены, мобильные и адаптивные интерфейсы, interaction design. Исследования: интервью, JTBD, CJM, персоны, воркшопы, метрики и гипотезы.</p>
+      </div>
+    </div>
     <div class="cols">
       <div class="mono faint">карьера</div>
-      <div class="text">
-        <p><strong>Начинал с интерфейсов для небольших студий, потом ушёл в продуктовые команды.</strong> Работаю на стыке исследований и интерфейса: сначала разбираюсь, где пользователь теряется, потом проектирую так, чтобы это место исчезло. Люблю системы, которые переживают смену команды.</p>
-        <p>Инструменты: Figma, FigJam, Protopie, немного кода на фронтенде. Провожу интервью и юзабилити-тесты сам, без отдельного исследователя.</p>
+      <div class="career">
+        <details>
+          <summary><span class="cr-co">НаПоправку<span class="cr-role">Lead Product Designer</span></span><span class="cr-yr is-now">2025 — сейчас</span><span class="cr-pm" aria-hidden="true"></span></summary>
+          <div class="cr-more">
+            <p>Курирую отдел продуктового дизайна из трёх дизайнеров. Создал дизайн-систему на семантических токенах и убрал неоднозначность тёмной темы: раньше её задавала разработка, теперь дизайн. Участвовал в создании передачи дизайн-токенов через GitLab. Сам веду задачи в командах Telemed App и Growth and Monetization.</p>
+          </div>
+        </details>
+        <details>
+          <summary><span class="cr-co">EPAM Systems<span class="cr-role">Lead Experience Designer</span></span><span class="cr-yr">2020 — 2025</span><span class="cr-pm" aria-hidden="true"></span></summary>
+          <div class="cr-more">
+            <p>Домен LifeScience, проекты Syngenta. Руководил командой из 14 дизайнеров на 12 проектах, развивал дизайн-систему SynUI, проводил ревью и менторил дизайнеров.</p>
+            <ul class="cr-steps">
+              <li><span>Lead Experience Designer</span><span class="mono">май 2025</span></li>
+              <li><span>Senior UX Designer</span><span class="mono">2022</span></li>
+              <li><span>Middle UX Designer</span><span class="mono">2020</span></li>
+            </ul>
+          </div>
+        </details>
+        <details class="is-past">
+          <summary><span class="cr-co">Lorett Digital<span class="cr-role">UX/UI Designer</span></span><span class="cr-yr">2019</span><span class="cr-pm" aria-hidden="true"></span></summary>
+          <div class="cr-more"><p>Мобильные приложения для буровых бригад, сервиса медитаций и доставки еды, внутренние инструменты команды.</p></div>
+        </details>
+        <details class="is-past">
+          <summary><span class="cr-co">СПбГЭТУ «ЛЭТИ»<span class="cr-role">Графический дизайнер</span></span><span class="cr-yr">2015 — 2018</span><span class="cr-pm" aria-hidden="true"></span></summary>
+          <div class="cr-more"><p>Печатные материалы, выставочные стенды и брендинг.</p></div>
+        </details>
+        <details class="is-past">
+          <summary><span class="cr-co">СПбГЭТУ «ЛЭТИ»<span class="cr-role">Специалитет</span></span><span class="cr-yr">2014 — 2020</span><span class="cr-pm" aria-hidden="true"></span></summary>
+          <div class="cr-more"><p>Образование: радиоэлектронные системы и комплексы.</p></div>
+        </details>
       </div>
     </div>
     <div class="cols" id="contact">
@@ -574,29 +631,30 @@ body::after {
 
 <script>
 (function () {
+  // Texts from the «Portfolio 2025» deck. Years are approximate for now (Артем, 2026-11-15): the deck goes newest → oldest from 2025.
   const projects = [
-    { id: "polosa-business", year: 2026, period: "2025 — сейчас", title: "Банк для малого бизнеса", company: "Полоса", device: "phone", platforms: "iOS, Android", link: "", case: "polosa-business/",
-      achievements: ["Пересобрал главный экран под три частых сценария предпринимателя: оплатить счёт, проверить поступления, выставить счёт.", "Убрал шесть экранов из сценария оплаты счёта, время оплаты сократилось на 38%.", "Провёл 14 интервью с клиентами и выстроил вместе с продактом бэклог гипотез на полгода."] },
-    { id: "polosa-ds", year: 2025, period: "2024 — 2025", title: "Дизайн-система «Грань»", company: "Полоса", platforms: "Web, iOS, Android", link: "",
-      achievements: ["Собрал единую систему для трёх платформ: токены, 64 компонента и документацию.", "Настроил процесс приёма изменений от продуктовых команд и ревью компонентов вместе с разработкой.", "Перевёл на систему 11 продуктовых команд, время сборки нового экрана сократилось вдвое."] },
-    { id: "clinic-booking", year: 2024, period: "2023 — 2024", title: "Запись к врачу за три шага", company: "Здравица", platforms: "Web", link: "",
-      achievements: ["Исследовал, почему пациенты бросают запись на выборе времени: аналитика воронки и 10 юзабилити-тестов.", "Перепроектировал шаг выбора времени вокруг ближайших свободных окон.", "Доля завершённых записей выросла на 21%."] },
-    { id: "clinic-doctor", year: 2023, period: "2023", title: "Кабинет врача", company: "Здравица", platforms: "Web, планшет", link: "",
-      achievements: ["Собрал рабочее место врача на приёме: расписание, карта пациента и назначения на одном экране.", "Провёл наблюдения за приёмами в двух клиниках и выделил лишние действия врача.", "Экономия около 4 минут на каждом приёме."] },
-    { id: "logist-analytics", year: 2022, period: "2021 — 2022", title: "Аналитика для логистов", company: "Маршрут", platforms: "Web", link: "",
-      achievements: ["Спроектировал панель диспетчера: где машины, кто опаздывает и почему.", "Разработал систему плотных таблиц и графиков, которая остаётся читаемой при сотнях строк.", "Продукт вырос до 320 компаний-клиентов."] },
-    { id: "logist-onboarding", year: 2021, period: "2021", title: "Онбординг перевозчиков", company: "Маршрут", platforms: "Web", link: "",
-      achievements: ["Разбил длинную анкету регистрации на шаги с проверкой документов.", "Добавил сохранение черновика, чтобы к анкете можно было вернуться позже.", "Завершённых анкет стало в два раза больше."] },
-    { id: "food-delivery", year: 2020, period: "2019 — 2020", title: "Доставка из фермерских лавок", company: "Грядка", device: "phone", platforms: "iOS, Android", link: "",
-      achievements: ["Вёл продукт целиком: от интервью с фермерами до запуска в сторах.", "Спроектировал каталог, корзину и выбор слотов доставки.", "Рейтинг приложения в App Store 4,8."] },
-    { id: "studio-sites", year: 2018, period: "2017 — 2019", title: "Сайты для студии", company: "Студия «Контур»", platforms: "Web", link: "",
-      achievements: ["Сделал около тридцати сайтов и лендингов для малого бизнеса.", "Научился работать с клиентом, сроками и вёрсткой.", "Понял, что хочу заниматься продуктом."] }
+    { id: "cso", year: 2025, period: "2024 — 2025", title: "Chemical Search and Ordering", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Собрал в одну платформу заказ химических веществ для учёных трёх площадок Syngenta: Stein, Jealott’s Hill и Goa. Внутренних заказов стало на 40% больше в месяц, поисковых запросов на 42%.", "Вёл команду из трёх дизайнеров. Провёл интервью на трёх площадках, собрал три персоны и CJM.", "Проверил 26 гипотез на модерируемых тестах и в Maze, 16 легли в MVP. Отстоял самый сбалансированный из четырёх вариантов MVP, его запустили за 8 месяцев."] },
+    { id: "agrigear", year: 2024, period: "2024", title: "AgriGear", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Спроектировал аналитику генов больше 40 видов растений: поиск по условиям, по генам и по похожей экспрессии, интерактивные графики.", "Работал внешним UX-дизайнером на стороне клиента и разобрался в генетике без прямого доступа к экспертам.", "Переиспользовал паттерны и код из похожих проектов, это ускорило разработку MVP и снизило затраты."] },
+    { id: "automation-demonstrator", year: 2024, period: "2023 — 2024", title: "Automation Demonstrator", company: "Syngenta · EPAM", platforms: "Web, AI", link: "",
+      achievements: ["Сделал прототипы проверки этикеток химической продукции с помощью ИИ на базе Gemini. Они стали главным аргументом при защите концепции и помогли получить бюджет на MVP.", "Спроектировал новый тип взаимодействия через команды в чате и компоненты, которые показывают любые ответы ИИ: списки, таблицы, текст со ссылками.", "Провёл интервью с пользователями и расширил список документов, которые проверяет система."] },
+    { id: "visitors-tool", year: 2023, period: "2023", title: "Visitors Organization Tool", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Заменил Excel и устаревший Filemaker на сервис планирования визитов и экскурсий на объекты Syngenta. От исследования до релиза ушло 4 спринта.", "Предложил календарь как основной способ управлять заявками, а для поиска сделал режим списка. Форму для гостей разбил на четыре блока с учётом GDPR.", "На тестах пользователи справлялись без обучения. После релиза решение попросили масштабировать на UK."] },
+    { id: "fermentation-hub", year: 2023, period: "2022 — 2023", title: "Fermentation Data Hub", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Собрал данные с разных ферментёров в одну систему: мониторинг в реальном времени, сравнение партий, первичный анализ. График держит до 1 млн точек без потери производительности.", "Провёл воркшоп с пользователями и стейкхолдерами по Value Proposition Canvas, чтобы выделить реальные задачи биоинженеров.", "Продумал интеграцию с Benchling и EVE: импорт протоколов и экспорт расчётов."] },
+    { id: "publication-approval", year: 2022, period: "2022", title: "Publication Approval Tool", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Перевёл согласование публикаций из переписки в цифровой процесс. Среднее время согласования сократилось на 63%, запросов стало в 2,1 раза больше.", "Спроектировал универсальную форму запроса, комментарии к запросам и файлам и уведомления о каждом этапе.", "Сделал админку для согласующих: замена на заместителей, пропуск и изменение шагов. 75% согласующих отметили, что процесс стал прозрачным."] },
+    { id: "reaction-data", year: 2021, period: "2021", title: "Reaction Data Management", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Заменил Excel и устаревшую ELN-систему визуальной настройкой реакционных пластин. Подготовка пластин стала быстрее на 45%, ввод данных в 2,6 раза.", "Провёл интервью с химиками и спроектировал больше 80 экранов: таблицы, фильтры, визуализацию данных и переходы между этапами эксперимента.", "Платформой пользуются лаборатории в Швейцарии, Индии и Германии."] },
+    { id: "breathing-b", year: 2020, period: "2020", title: "b: дыхательные практики", company: "Стартап", device: "phone", platforms: "iOS, Android, IoT", link: "",
+      achievements: ["Спроектировал приложение к умному устройству b, которое следит за дыханием и подбирает персональные программы. Проект вышел на Indiegogo.", "Сделал режим Live: сессия начинается с первого вдоха, без лишних шагов.", "Продумал мотивацию (бейджи, цели, прогресс) и работу при нестабильном Bluetooth."] }
   ];
 
   const total = projects.length;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  document.getElementById("work-count").textContent = total + " · 2017 — 2026";
+  document.getElementById("work-count").textContent = total + " · 2020 — 2025";
   document.getElementById("work-list").innerHTML = projects.map((p) => `
     <article class="project" id="${p.id}" aria-labelledby="t-${p.id}">
       <div class="p-meta">
