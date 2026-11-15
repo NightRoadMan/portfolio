@@ -270,15 +270,26 @@ body::after {
 .about .text { display: grid; gap: var(--s-4); }
 .about p { margin: 0; max-width: 58ch; color: var(--fg-2); }
 .about p strong { color: var(--fg); font-weight: var(--w-regular); }
-/* career: a quiet table — year | company | role; the company is written once, EPAM promotions are sub-rows;
+/* about (desktop): the brain has left with the projects, so this part runs gutter to gutter (variant B):
+   a big statement, the approach in two text columns, a four-column career table, contacts as one row of cells */
+@media (min-width: 768px) {
+  .about { max-width: none; margin-right: max(var(--gutter), env(safe-area-inset-right, 0px)); gap: var(--s-16); padding-top: var(--s-24); }
+  .about .text.is-2col { display: block; columns: 2 28ch; column-gap: var(--s-12); }
+  .about .text.is-2col p { break-inside: avoid; }
+  .about .text.is-2col p + p { margin-top: var(--s-4); }
+}
+.about .about-lead { margin: 0; max-width: 18ch; font-family: var(--font-head); font-weight: 300; font-size: clamp(1.75rem, 1rem + 3.4vw, 4.5rem); line-height: 1.12; letter-spacing: -0.01em; text-wrap: balance; color: var(--fg); }
+
+/* career: year | company | role | what I did; the company is written once, EPAM promotions are sub-rows;
    hairlines only between companies; the current year carries a mint dot */
 .career { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.career th { padding: 0 var(--s-4) var(--s-3) 0; font-family: var(--font-mono); font-size: var(--t-meta); font-weight: var(--w-regular); letter-spacing: 0.02em; text-align: left; color: var(--fg-3); }
-.career th:first-child { width: 9ch; }
-.career th:nth-child(2) { width: 52%; }
+.career th { padding: 0 var(--s-6) var(--s-3) 0; font-family: var(--font-mono); font-size: var(--t-meta); font-weight: var(--w-regular); letter-spacing: 0.02em; text-align: left; color: var(--fg-3); }
+.career th:first-child { width: 8ch; }
+.career th:nth-child(2) { width: 24%; }
+.career th:nth-child(3) { width: 26%; }
 .career tbody { border-top: 1px solid var(--line); }
 .career tbody:last-child { border-bottom: 1px solid var(--line); }
-.career td { padding: var(--s-1) var(--s-4) var(--s-1) 0; vertical-align: top; }
+.career td { padding: var(--s-1) var(--s-6) var(--s-1) 0; vertical-align: top; }
 .career tr:first-child td { padding-top: var(--s-4); }
 .career tr:last-child td { padding-bottom: var(--s-4); }
 .career td:last-child, .career th:last-child { padding-right: 0; }
@@ -288,14 +299,15 @@ body::after {
 .cr-co { color: var(--fg); }
 .cr-co small { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: var(--t-meta); line-height: var(--lh-meta); color: var(--fg-3); }
 .cr-role { color: var(--fg-2); }
-.career .is-cur .cr-role, .career tr:first-child .cr-role { color: var(--fg); }
+.career tr:first-child .cr-role { color: var(--fg); }
+.cr-what { max-width: 52ch; font-size: var(--t-secondary); color: var(--fg-2); }
 .career tbody.is-past .cr-co, .career tbody.is-past .cr-role { color: var(--fg-2); }
 @media (max-width: 767.98px) {
   .career thead { display: none; }
   .career, .career tbody, .career tr { display: block; }
-  .career tr { display: grid; grid-template-columns: 6ch minmax(0, 1fr); column-gap: var(--s-4); }
+  .career tr { display: grid; grid-template-columns: 6ch minmax(0, 1fr); column-gap: var(--s-4); row-gap: var(--s-1); }
   .career td { display: block; padding: 0 !important; }
-  .career .cr-yr { grid-row: span 2; padding-top: 3px !important; }
+  .career .cr-yr { grid-row: span 3; padding-top: 3px !important; }
   .career td:empty { display: none; }
   .career tbody { padding-block: var(--s-4); display: grid; gap: var(--s-2); }
   .career .cr-role { font-size: var(--t-secondary); }
@@ -309,6 +321,21 @@ body::after {
 }
 .contact .contact-v { color: var(--accent); text-align: right; overflow-wrap: anywhere; transition: opacity 120ms var(--ease); }  /* label white, value mint */
 .contact:hover .contact-v { opacity: .75; }
+@media (min-width: 768px) {
+  .contacts.is-row { grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; border-bottom: 1px solid var(--line); }
+  .contacts.is-row li { border-bottom: 0; }
+  .contacts.is-row li + li { border-left: 1px solid var(--line); }
+  .contacts.is-row .contact { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--s-2); height: 100%; padding: var(--s-6) var(--s-4); }
+  .contacts.is-row li:first-child .contact { padding-left: 0; }
+  .contacts.is-row .contact-k { font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.02em; text-transform: lowercase; color: var(--fg-3); }
+  .contacts.is-row .contact-v { text-align: left; font-size: clamp(1rem, 0.9rem + 0.4vw, 1.25rem); }
+}
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  .contacts.is-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .contacts.is-row li:nth-child(4) { border-left: 0; }
+  .contacts.is-row li:nth-child(4) .contact { padding-left: 0; }
+  .contacts.is-row li:nth-child(n+4) { border-top: 1px solid var(--line); }
+}
 .foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); padding-top: var(--s-16); color: var(--fg-3); }
 .foot-sign, .only-narrow { display: none; }
 
@@ -566,39 +593,40 @@ body::after {
 
   <section class="about" id="about" aria-labelledby="about-title">
     <h2 class="label" id="about-title"><span>обо мне</span><span>7 лет · 2019 — 2026</span></h2>
+    <p class="about-lead">Веду продукт от исследования и первых идей до прототипа, тестов и запуска.</p>
     <div class="cols">
       <div class="mono faint">подход</div>
-      <div class="text">
-        <p><strong>Веду продукт от исследования и первых идей до прототипа, тестов и запуска.</strong> Понимаю, как устроена разработка, поэтому мои решения не остаются на макетах. Умею просто рассказывать о сложном: через прототипы, презентации и визуальные истории.</p>
-        <p>В НаПоправку курирую отдел продуктового дизайна и построил дизайн-систему на семантических токенах. До этого два года руководил дизайном на проектах Syngenta в EPAM: 14 дизайнеров на 12 проектах. Стоял у истоков дизайн-системы SynUI, сейчас на ней больше 30 внутренних B2B-продуктов. Участвовал в шести пресейлах, четыре выиграли и принесли EPAM новые проекты.</p>
+      <div class="text is-2col">
+        <p><strong>Понимаю, как устроена разработка, поэтому мои решения не остаются на макетах.</strong> Умею просто рассказывать о сложном: через прототипы, презентации и визуальные истории.</p>
+        <p>В НаПоправку курирую отдел продуктового дизайна. До этого два года руководил дизайном на проектах Syngenta в EPAM: 14 дизайнеров на 12 проектах. Стоял у истоков дизайн-системы SynUI, сейчас на ней больше 30 внутренних B2B-продуктов. Из шести пресейлов четыре выиграли и принесли EPAM новые проекты.</p>
         <p>Дизайн-системы и токены, мобильные и адаптивные интерфейсы, interaction design. Исследования: интервью, JTBD, CJM, персоны, воркшопы, метрики и гипотезы.</p>
       </div>
     </div>
     <div class="cols">
       <div class="mono faint">карьера</div>
       <table class="career">
-        <thead><tr><th scope="col">год</th><th scope="col">компания</th><th scope="col">роль</th></tr></thead>
+        <thead><tr><th scope="col">год</th><th scope="col">компания</th><th scope="col">роль</th><th scope="col">чем занимался</th></tr></thead>
         <tbody class="is-cur">
-          <tr><td class="cr-yr"><span class="cr-dot" aria-label="сейчас"></span>2025</td><td class="cr-co">НаПоправку<small>октябрь 2025 — сейчас</small></td><td class="cr-role">Lead Product Designer</td></tr>
+          <tr><td class="cr-yr"><span class="cr-dot" aria-label="сейчас"></span>2025</td><td class="cr-co">НаПоправку<small>октябрь 2025 — сейчас</small></td><td class="cr-role">Lead Product Designer</td><td class="cr-what">Курирую отдел из трёх дизайнеров. Создал дизайн-систему на семантических токенах, перевёл тёмную тему из разработки в дизайн, участвовал в передаче токенов через GitLab. Работаю в командах Telemed App и Growth and Monetization.</td></tr>
         </tbody>
         <tbody>
-          <tr><td class="cr-yr">2025</td><td class="cr-co">EPAM Systems<small>LifeScience · Syngenta · 2020 — 2025</small></td><td class="cr-role">Lead Experience Designer</td></tr>
-          <tr><td class="cr-yr">2022</td><td class="cr-co"></td><td class="cr-role">Senior UX Designer</td></tr>
-          <tr><td class="cr-yr">2020</td><td class="cr-co"></td><td class="cr-role">Middle UX Designer</td></tr>
+          <tr><td class="cr-yr">2025</td><td class="cr-co">EPAM Systems<small>2020 — 2025</small></td><td class="cr-role">Lead Experience Designer</td><td class="cr-what">LifeScience, проекты Syngenta. Команда из 14 дизайнеров, дизайн-система SynUI, пресейлы.</td></tr>
+          <tr><td class="cr-yr">2022</td><td class="cr-co"></td><td class="cr-role">Senior UX Designer</td><td class="cr-what"></td></tr>
+          <tr><td class="cr-yr">2020</td><td class="cr-co"></td><td class="cr-role">Middle UX Designer</td><td class="cr-what"></td></tr>
         </tbody>
         <tbody class="is-past">
-          <tr><td class="cr-yr">2019</td><td class="cr-co">Lorett Digital<small>мобильные приложения</small></td><td class="cr-role">UX/UI Designer</td></tr>
+          <tr><td class="cr-yr">2019</td><td class="cr-co">Lorett Digital</td><td class="cr-role">UX/UI Designer</td><td class="cr-what">Мобильные приложения для буровых бригад, сервиса медитаций и доставки еды.</td></tr>
         </tbody>
       </table>
     </div>
     <div class="cols" id="contact">
       <div class="mono faint">связь со мной</div>
-      <ul class="contacts">
-        <li><button class="contact" type="button" data-copy="kvadrolee@mail.ru" aria-label="Email kvadrolee@mail.ru, скопировать">Email <span class="contact-v">kvadrolee@mail.ru</span></button></li>
-        <li><a class="contact" href="https://t.me/nightroadman" target="_blank" rel="noopener">Telegram <span class="contact-v">@nightroadman</span></a></li>
-        <li><a class="contact" href="https://www.instagram.com/dixset/" target="_blank" rel="noopener">Instagram <span class="contact-v">@dixset</span></a></li>
-        <li><a class="contact" href="https://dribbble.com/nightroadman" target="_blank" rel="noopener">Dribbble <span class="contact-v">Nightroadman</span></a></li>
-        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf">Резюме <span class="contact-v">Скачать CV</span></a></li>
+      <ul class="contacts is-row">
+        <li><button class="contact" type="button" data-copy="kvadrolee@mail.ru" aria-label="Email kvadrolee@mail.ru, скопировать"><span class="contact-k">Email</span> <span class="contact-v">kvadrolee@mail.ru</span></button></li>
+        <li><a class="contact" href="https://t.me/nightroadman" target="_blank" rel="noopener"><span class="contact-k">Telegram</span> <span class="contact-v">@nightroadman</span></a></li>
+        <li><a class="contact" href="https://www.instagram.com/dixset/" target="_blank" rel="noopener"><span class="contact-k">Instagram</span> <span class="contact-v">@dixset</span></a></li>
+        <li><a class="contact" href="https://dribbble.com/nightroadman" target="_blank" rel="noopener"><span class="contact-k">Dribbble</span> <span class="contact-v">Nightroadman</span></a></li>
+        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf"><span class="contact-k">Резюме</span> <span class="contact-v">Скачать CV</span></a></li>
       </ul>
     </div>
     <div class="foot mono">
@@ -1003,13 +1031,24 @@ body::after {
     bubble.classList.toggle("is-popped", isOpen || !!popAnim);
     bubble.tabIndex = on ? 0 : -1;
     bubble.setAttribute("aria-hidden", String(!on));
-    hero.setPaused(phone.matches && (!colVisible || isOpen));
+    hero.setPaused(!colVisible || (phone.matches && isOpen));  // desktop: paused once it has left with the projects
     if (miniHero) miniHero.setPaused(!on && !isOpen);
   }
   new IntersectionObserver(([e]) => {
     colVisible = e.isIntersecting; colAbove = e.boundingClientRect.bottom <= 0; sync();
   }).observe(col);
   phone.addEventListener("change", () => { if (!phone.matches && isOpen) closePop(); sync(); });
+  // Desktop: the brain ends with the projects. As «обо мне» comes up from the bottom of the screen,
+  // the fixed brain column is pushed up by exactly as much, so it leaves glued to the last project.
+  const aboutEl = document.getElementById("about");
+  function liftBrain() {
+    const shift = phone.matches ? 0 : Math.max(0, Math.min(innerHeight, innerHeight - aboutEl.getBoundingClientRect().top));
+    col.style.transform = shift ? `translate3d(0, ${-shift.toFixed(1)}px, 0)` : "";
+  }
+  addEventListener("scroll", liftBrain, { passive: true });
+  addEventListener("resize", liftBrain);
+  phone.addEventListener("change", liftBrain);
+  liftBrain();
   // load the bubble's brain as soon as the reader starts scrolling, so it is ready by the time the card is gone
   addEventListener("scroll", function first() { if (phone.matches) { ensureMini(); removeEventListener("scroll", first); } }, { passive: true });
 
