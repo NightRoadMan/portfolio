@@ -4,7 +4,10 @@
  *
  *   import { mountBrainHero } from './dist/brain-hero.js';
  *   const hero = mountBrainHero(document.querySelector('#brain'), { dataUrl: '/data/' });
- *   hero.setSlice(20); hero.reset(); hero.setPaused(true); hero.destroy();
+ *   hero.setSlice(20); hero.reset(); hero.setPaused(true); hero.getView(); hero.setView(v); hero.resetZoom(); hero.destroy();
+ *
+ * CSS vars on the container: --brain-fit, --brain-offset-x/-y, --brain-glow, --brain-dot (dot size ×), --brain-dpr (pixel-ratio cap),
+ *   --brain-zoom (max pinch zoom, >1 enables pinch + double tap), --brain-follow (0..1 lean towards the mouse), --brain-drag, --brain-spin
  *
  * Options
  *   dataUrl       folder with brain_atlas.webp|png, brain_meta.json, poster.png   (default 'data/')
@@ -30,7 +33,8 @@ const CSS = /* css */`
 .bh{position:relative;width:100%;height:100%;overflow:hidden;--bh-fg:#f2f2f0;--bh-fg-2:rgba(242,242,240,.62);--bh-fg-3:rgba(242,242,240,.34);--bh-line:rgba(255,255,255,.10);--bh-pill:rgba(20,20,24,.72);--bh-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;--bh-gutter:clamp(16px,3vw,40px)}
 .bh-stage{position:absolute;inset:0;touch-action:none;cursor:grab;outline:none}
 .bh-stage.dragging{cursor:grabbing}
-.bh-stage canvas{display:block;width:100%;height:100%}
+.bh-stage canvas{display:block;width:100%;height:100%;opacity:0;transition:opacity 1.4s cubic-bezier(.3,0,.2,1)}
+.bh-stage.bh-in canvas{opacity:1}
 .bh-stage img{width:100%;height:100%;object-fit:contain;opacity:.9}
 .bh-scale{position:absolute;z-index:2;left:var(--bh-gutter);top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:flex-start;gap:12px;user-select:none;-webkit-user-select:none}
 .bh-label{font-family:var(--bh-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bh-fg-3)}
@@ -296,7 +300,9 @@ export function mountBrainHero(root, opts = {}) {
     yaw: 0, pitch: 0.21, targetPitch: 0.21, vel: 0, dragging: false, lastX: 0, lastY: 0, lastT: 0, auto: prefersReduced ? 0 : 0.14, idle: 0, prevYaw: 0, spinEnergy: 0,
     slice: 1, sliceTarget: 1, sliceFloat: 1, count: 1, navVel: 0, navDrag: false, navLastT: 0, prevSlice: 1, sliceEnergy: 0,
     intro: 0, pointerOn: 0, pointerIdle: 9,
+    zoom: 1, zoomTarget: 1, follow: 0, fx: 0, fy: 0, fxT: 0, fyT: 0,
   };
+  let baseZ = 3.3, dotMul = 1;   // dotMul: live dot-size factor for transitions (setDot)
 
   async function init() {
     const vol = await loadVolume(dataUrl);
@@ -343,25 +349,32 @@ export function mountBrainHero(root, opts = {}) {
     buildTicks(); updateNav(); resize();
     el.loader.classList.add('hide');
     raf = requestAnimationFrame(tick);
+    requestAnimationFrame(() => el.stage.classList.add('bh-in'));  // the dots fade in instead of popping up
   }
 
   /* layout: brain centred, CSS vars --brain-offset-x/-y shift it */
   function resize() {
     const w = el.stage.clientWidth, h = el.stage.clientHeight;
     if (!w || !h) return;
+    const dprCap = parseFloat(getComputedStyle(root).getPropertyValue('--brain-dpr')) || 2;  // a small canvas needs fewer pixels
+    renderer.setPixelRatio(Math.min(devicePixelRatio, dprCap));
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix(); fx.uAspect.value = w / h;
     const cs = getComputedStyle(root);
     // --brain-fit (0..1): fit the brain's bounding sphere to that share of the container's shorter side
     const fit = parseFloat(cs.getPropertyValue('--brain-fit'));
-    camera.position.set(0, 0, fit > 0 ? 0.75 / (Math.tan(Math.PI / 12) * Math.min(1, w / h)) / fit : (h > w ? 5.2 : 3.3)); camera.lookAt(0, 0, 0);
+    baseZ = fit > 0 ? 0.75 / (Math.tan(Math.PI / 12) * Math.min(1, w / h)) / fit : (h > w ? 5.2 : 3.3);
+    camera.position.set(0, 0, baseZ / S.zoom); camera.lookAt(0, 0, 0);
+    S.follow = prefersReduced ? 0 : parseFloat(cs.getPropertyValue('--brain-follow')) || 0;  // tilt towards the mouse, 0 = off
+    if (!(parseFloat(cs.getPropertyValue('--brain-zoom')) > 1)) S.zoom = S.zoomTarget = 1;
     tilt.position.set(parseFloat(cs.getPropertyValue('--brain-offset-x')) || 0, parseFloat(cs.getPropertyValue('--brain-offset-y')) || 0, 0);
     // points have a fixed pixel size, so a small canvas packs them densely and the additive blend burns to white:
     // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
     renderer._bhK = Math.min(1, Math.max(0.15, Math.min(w, h) / 720)) * (parseFloat(cs.getPropertyValue('--brain-dot')) || 1);  // floor 0.15: the page's small bubble brain; --brain-dot multiplies the dot size
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
     S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
-    for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
+    for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK * dotMul; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
+    if (dims && !paused) renderer.render(scene, camera);  // redraw now: setSize cleared the canvas, a blank frame would flash
   }
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
 
@@ -372,20 +385,50 @@ export function mountBrainHero(root, opts = {}) {
     fx.uPointer.value.set(((e.clientX - r.left) / r.width) * 2 - 1, 1 - ((e.clientY - r.top) / r.height) * 2);
     S.pointerOn = 1; S.pointerIdle = 0;
   };
-  const onDown = e => { K = 0.0075 * (parseFloat(getComputedStyle(root).getPropertyValue('--brain-drag')) || 1); S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
+  const pts2 = new Map();   // active touches, for pinch zoom
+  let pinch = null, lastTap = null;
+  const zoomMax = () => parseFloat(getComputedStyle(root).getPropertyValue('--brain-zoom')) || 1;
+  const pinchDist = () => { const [a, b] = [...pts2.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+  const zoomDown = e => {
+    pts2.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
+    if (zoomMax() <= 1) return false;
+    if (pts2.size === 2) { try { el.stage.setPointerCapture(e.pointerId); } catch {} pinch = { d: pinchDist(), z: S.zoomTarget }; S.dragging = false; S.vel = 0; lastTap = null; return true; }
+    const now = performance.now();   // double tap: zoom in, or back to the whole brain
+    if (lastTap && now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+      S.zoomTarget = S.zoomTarget > 1.05 ? 1 : Math.min(2, zoomMax()); if (S.zoomTarget === 1) S.targetPitch = 0.21; lastTap = null; return true;
+    }
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+    return pts2.size > 2;
+  };
+  const onDown = e => { if (zoomDown(e)) return; K = 0.0075 * (parseFloat(getComputedStyle(root).getPropertyValue('--brain-drag')) || 1); S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
   const onMove = e => {
+    if (pts2.has(e.pointerId)) { const p = pts2.get(e.pointerId); p.x = e.clientX; p.y = e.clientY; if (lastTap && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) > 10) lastTap = null; }
+    if (pinch) { if (pts2.size === 2) S.zoomTarget = THREE.MathUtils.clamp(pinch.z * pinchDist() / pinch.d, 1, zoomMax()); return; }
     setPointer(e);
     if (!S.dragging) return;
     const dx = e.clientX - S.lastX, dy = e.clientY - S.lastY, now = performance.now(), dt = Math.max(now - S.lastT, 1) / 1000;
     S.yaw += dx * K; S.targetPitch = THREE.MathUtils.clamp(S.targetPitch + dy * K * 0.6, -1.2, 1.2); S.vel = THREE.MathUtils.clamp(S.vel * 0.55 + dx * K / dt * 0.45, -14, 14);  // smoothed fling, not the last event's raw dx/dt
     S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = now;
   };
-  const onUp = () => { if (S.dragging) { S.dragging = false; el.stage.classList.remove('dragging'); S.idle = 0; if (performance.now() - S.lastT > 90) S.vel = 0; } };  // a pause before release stops the fling
+  const onUp = e => {
+    pts2.delete(e.pointerId);
+    if (pinch) { if (pts2.size < 2) { pinch = null; S.dragging = false; S.vel = 0; } return; }
+    onUp0();
+  };
+  const onUp0 = () => { if (S.dragging) { S.dragging = false; el.stage.classList.remove('dragging'); S.idle = 0; if (performance.now() - S.lastT > 90) S.vel = 0; } };  // a pause before release stops the fling
   const onLeave = () => { S.pointerOn = 0; };
   const onKey = e => { if (e.key === 'ArrowLeft') S.yaw -= 0.15; if (e.key === 'ArrowRight') S.yaw += 0.15; };
   el.stage.addEventListener('pointerdown', onDown); el.stage.addEventListener('pointermove', onMove);
   el.stage.addEventListener('pointerup', onUp); el.stage.addEventListener('pointercancel', onUp);
   el.stage.addEventListener('pointerleave', onLeave); el.stage.addEventListener('keydown', onKey);
+  const onFollow = e => {
+    if (e.pointerType !== 'mouse' || !S.follow) return;
+    const r = el.stage.getBoundingClientRect(); if (!r.width) return;
+    S.fxT = THREE.MathUtils.clamp((e.clientX - (r.left + r.width / 2)) / (innerWidth / 2), -1, 1);
+    S.fyT = THREE.MathUtils.clamp((e.clientY - (r.top + r.height / 2)) / (innerHeight / 2), -1, 1);
+  };
+  const onFollowOut = e => { if (!e.relatedTarget) S.fxT = S.fyT = 0; };
+  addEventListener('pointermove', onFollow, { passive: true }); document.addEventListener('mouseout', onFollowOut);
 
   /* slice scale: drag with inertia, snap to major ticks, wheel, keys, optional scroll-link */
   function buildTicks() {
@@ -465,7 +508,10 @@ export function mountBrainHero(root, opts = {}) {
       S.yaw += (S.vel + THREE.MathUtils.smoothstep(S.idle, 0.4, 2) * S.auto) * dt;
     }
     S.pitch += (S.targetPitch - S.pitch) * Math.min(1, dt * 6);
-    rig.rotation.y = S.yaw; tilt.rotation.x = S.pitch;
+    const fk = S.dragging ? 0 : S.follow;                          // a gentle lean towards the mouse
+    S.fx += (S.fxT * fk - S.fx) * Math.min(1, dt * 2.5); S.fy += (S.fyT * fk - S.fy) * Math.min(1, dt * 2.5);
+    rig.rotation.y = S.yaw + S.fx * 0.32; tilt.rotation.x = S.pitch + S.fy * 0.18;
+    if (Math.abs(S.zoomTarget - S.zoom) > 1e-4) { S.zoom += (S.zoomTarget - S.zoom) * Math.min(1, dt * 12); camera.position.z = baseZ / S.zoom; }
 
     const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto); S.prevYaw = S.yaw;
     S.spinEnergy = ease(S.spinEnergy, Math.min(1, Math.abs(extra) / 2.2), dt, 9, 1.1);
@@ -505,12 +551,21 @@ export function mountBrainHero(root, opts = {}) {
   return {
     setSlice: n => setSliceFloat(n),
     reset,
+    // hand the view over to another copy, so two mounts read as one brain
+    getView: () => ({ yaw: S.yaw, pitch: S.pitch, targetPitch: S.targetPitch, vel: S.vel, zoom: S.zoomTarget }),
+    setView(v) { if (!v) return; S.yaw = S.prevYaw = v.yaw; S.pitch = v.pitch; S.targetPitch = v.targetPitch; S.vel = v.vel || 0; S.idle = 2; },
+    resetZoom(smooth) { S.zoomTarget = 1; if (!smooth) { S.zoom = 1; camera.position.z = baseZ; } },
+    // scale the dots live (a page transition that resizes the brain keeps them in step); 1 = normal
+    setDot(k) { dotMul = k > 0 ? k : 1; for (const u of layers) u.uPixelRatio.value = renderer.getPixelRatio() * (renderer._bhK || 1) * dotMul; },
+    // the numbers resize() uses, so a page transition can match two layouts exactly
+    getLook() { return { k: renderer._bhK || 1, fit: parseFloat(getComputedStyle(root).getPropertyValue('--brain-fit')) || 1 }; },
     setPaused(v) {
       paused = !!v;
       if (!paused && ticked && !raf && !destroyed) { last = performance.now(); raf = requestAnimationFrame(tick); }
     },
     destroy() {
       destroyed = true; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('scroll', onScroll);
+      removeEventListener('pointermove', onFollow); document.removeEventListener('mouseout', onFollowOut);
       renderer.dispose(); root.innerHTML = ''; root.classList.remove('bh');
     },
   };
