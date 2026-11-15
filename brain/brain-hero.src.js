@@ -302,7 +302,7 @@ export function mountBrainHero(root, opts = {}) {
     intro: 0, pointerOn: 0, pointerIdle: 9,
     zoom: 1, zoomTarget: 1, follow: 0, fx: 0, fy: 0, fxT: 0, fyT: 0,
   };
-  let baseZ = 3.3;
+  let baseZ = 3.3, dotMul = 1;   // dotMul: live dot-size factor for transitions (setDot)
 
   async function init() {
     const vol = await loadVolume(dataUrl);
@@ -373,7 +373,8 @@ export function mountBrainHero(root, opts = {}) {
     renderer._bhK = Math.min(1, Math.max(0.15, Math.min(w, h) / 720)) * (parseFloat(cs.getPropertyValue('--brain-dot')) || 1);  // floor 0.15: the page's small bubble brain; --brain-dot multiplies the dot size
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
     S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
-    for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
+    for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK * dotMul; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
+    if (dims && !paused) renderer.render(scene, camera);  // redraw now: setSize cleared the canvas, a blank frame would flash
   }
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
 
@@ -553,7 +554,11 @@ export function mountBrainHero(root, opts = {}) {
     // hand the view over to another copy, so two mounts read as one brain
     getView: () => ({ yaw: S.yaw, pitch: S.pitch, targetPitch: S.targetPitch, vel: S.vel, zoom: S.zoomTarget }),
     setView(v) { if (!v) return; S.yaw = S.prevYaw = v.yaw; S.pitch = v.pitch; S.targetPitch = v.targetPitch; S.vel = v.vel || 0; S.idle = 2; },
-    resetZoom() { S.zoom = S.zoomTarget = 1; camera.position.z = baseZ; },
+    resetZoom(smooth) { S.zoomTarget = 1; if (!smooth) { S.zoom = 1; camera.position.z = baseZ; } },
+    // scale the dots live (a page transition that resizes the brain keeps them in step); 1 = normal
+    setDot(k) { dotMul = k > 0 ? k : 1; for (const u of layers) u.uPixelRatio.value = renderer.getPixelRatio() * (renderer._bhK || 1) * dotMul; },
+    // the numbers resize() uses, so a page transition can match two layouts exactly
+    getLook() { return { k: renderer._bhK || 1, fit: parseFloat(getComputedStyle(root).getPropertyValue('--brain-fit')) || 1 }; },
     setPaused(v) {
       paused = !!v;
       if (!paused && ticked && !raf && !destroyed) { last = performance.now(); raf = requestAnimationFrame(tick); }

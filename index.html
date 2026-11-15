@@ -348,8 +348,6 @@ body::after {
     display: block; position: fixed; z-index: 30; left: 50%; top: calc(var(--safe-t) + 12px);
     width: var(--bubble-d); height: var(--bubble-d); margin-left: calc(var(--bubble-d) / -2);
     border-radius: 50%; overflow: hidden; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    background: rgb(5 8 7 / .35); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-    border: 1px solid rgb(255 255 255 / .14);
     transform: translateY(calc(-100% - var(--safe-t) - 24px)) scale(.7); opacity: 0; visibility: hidden;
     transition: transform 320ms cubic-bezier(.5, 0, .75, 0), opacity 160ms linear 160ms, visibility 0s 320ms;
   }
@@ -357,6 +355,9 @@ body::after {
     transform: none; opacity: 1; visibility: visible;
     transition: transform 640ms cubic-bezier(.3, 1.4, .55, 1), opacity 120ms linear, visibility 0s;
   }
+  /* no ring: a very light tint + blur under the brain, on its own layer so it can fade in after the popup closes */
+  .brain-bubble::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgb(5 8 7 / .2); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); transition: opacity 280ms var(--ease); }
+  .brain-bubble.is-popped::before, .brain-bubble.is-landing::before { opacity: 0; transition: none; }
   .brain-bubble:active { scale: .94; }
   .brain-bubble.is-drag:active { scale: 1; }
   .brain-bubble #brain-mini { --brain-dpr: 1.5; }  /* the small bubble needs fewer pixels: less battery */
@@ -370,26 +371,16 @@ body::after {
   /* the popup: whole screen, 50% tint + blur, the brain full width; the close button is an icon in a translucent ringed circle */
   .brain-pop {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; position: fixed; inset: 0; z-index: 60;
-    background: rgb(5 8 7 / 0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0);
-    visibility: hidden; transition: background 320ms var(--ease), -webkit-backdrop-filter 320ms var(--ease), backdrop-filter 320ms var(--ease), visibility 0s 420ms;
+    visibility: hidden; transition: visibility 0s 520ms;
   }
-  .brain-pop.is-open { visibility: visible; background: rgb(5 8 7 / .5); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: background 320ms var(--ease), -webkit-backdrop-filter 320ms var(--ease), backdrop-filter 320ms var(--ease), visibility 0s; }
+  .brain-pop.is-open { visibility: visible; transition: visibility 0s; }
+  /* the tint + blur never animates its radius (heavy in Safari): it is ready, only its opacity fades */
+  .brain-pop::before { content: ""; position: absolute; inset: 0; background: rgb(5 8 7 / .5); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); opacity: 0; transition: opacity 360ms var(--ease) 60ms; }
+  .brain-pop.is-open::before { opacity: 1; transition: opacity 320ms var(--ease); }
   /* the stage grows out of the bubble (JS animates it); the rest of the popup fades in */
   .brain-pop-stage { position: relative; width: 100vw; height: min(100vw, 100vh - 200px); }
-  .brain-pop > :not(.brain-pop-stage) { opacity: 0; transition: opacity 200ms var(--ease); }
+  .brain-pop > :not(.brain-pop-stage) { opacity: 0; transition: opacity 120ms linear; }  /* on close the button and timeline go at once */
   .brain-pop.is-open > :not(.brain-pop-stage) { opacity: 1; transition: opacity 260ms var(--ease) 160ms; }
-  /* «крути пальцем»: a handwritten hint in the style of the MRI note, shown on the first opening */
-  .pop-hint { position: absolute; z-index: 2; left: 24px; top: 4px; margin: 0; pointer-events: none; color: var(--fg); opacity: 0; transition: opacity 500ms var(--ease); }
-  .pop-hint.is-on { opacity: 1; transition: opacity 200ms var(--ease); }
-  .pop-hint-text {
-    display: block; white-space: nowrap; font-family: "Caveat", "Segoe Print", cursive; font-weight: 500; font-size: 26px; line-height: 1.1;
-    transform: rotate(-3deg); transform-origin: left top; clip-path: inset(-20% 100% -20% 0);
-  }
-  .pop-hint-arrow { position: absolute; left: calc(100% - 18px); top: 70%; width: 46px; height: 34px; overflow: visible; }
-  .pop-hint-arrow path { stroke-dasharray: 1; stroke-dashoffset: 1; }
-  .pop-hint.is-on .pop-hint-text { clip-path: inset(-20% -5% -20% 0); transition: clip-path 1100ms cubic-bezier(.45,.1,.55,.95) 150ms; }
-  .pop-hint.is-on .shaft { stroke-dashoffset: 0; transition: stroke-dashoffset 600ms cubic-bezier(.6,.05,.3,1) 1150ms; }
-  .pop-hint.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 200ms ease-out 1700ms; }
   .brain-pop #brain-mini { --brain-fit: 1.55; --brain-dot: 1.6; --brain-zoom: 3; pointer-events: auto; }  /* pinch up to 3×, double tap zooms in / back */  /* bigger dots: the popup brain is large */
   .brain-pop #brain-mini .bh-stage { pointer-events: auto; touch-action: none; }  /* in the popup the finger turns the brain */
   .brain-pop-close {
@@ -568,15 +559,7 @@ body::after {
   <div id="brain-mini"></div>
 </div>
 <div class="brain-pop" id="brain-pop" role="dialog" aria-modal="true" aria-label="Мой мозг" aria-hidden="true">
-  <div class="brain-pop-stage" id="brain-pop-stage">
-    <p class="pop-hint" id="pop-hint" aria-hidden="true">
-      <span class="pop-hint-text">крути пальцем</span>
-      <svg class="pop-hint-arrow" viewBox="0 0 46 34" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-        <path class="shaft" pathLength="1" d="M1.38 2.24 C 4.5 13, 4.37 11.46, 11 22 C 17.63 32.54, 25.5 18, 34 23.98 C 42.5 29.97, 41.16 29.76, 43.25 31.85"/>
-        <path class="head" pathLength="1" d="M37.64 31.22 C 39.73 31.43, 41.82 31.72, 43.7 31.89 C 43.32 29.96, 42.91 28.08, 42.4 26.2"/>
-      </svg>
-    </p>
-  </div>
+  <div class="brain-pop-stage" id="brain-pop-stage"></div>
   <div class="pop-tl" id="pop-tl" role="slider" tabindex="0" aria-label="Срез мозга" aria-orientation="horizontal" aria-valuemin="1" aria-valuemax="54" aria-valuenow="54">
     <span class="pop-tl-n" id="pop-tl-n" aria-hidden="true"></span>
     <span class="pop-tl-track" id="pop-tl-track"><span class="pop-tl-ticks" id="pop-tl-ticks"></span><span class="pop-tl-handle" id="pop-tl-handle"></span></span>
@@ -876,7 +859,7 @@ body::after {
 </script>
 <script type="module">
   // BrainTM: scrolling the projects moves the axial slice from the top of the brain down.
-  import { mountBrainHero } from "./brain/brain-hero.js?v=16";
+  import { mountBrainHero } from "./brain/brain-hero.js?v=17";
   const root = document.getElementById("brain");
   const counter = document.getElementById("slice-counter");
   const tlN = document.getElementById("tl-n");
@@ -958,10 +941,10 @@ body::after {
     const on = bubbleWanted() && !isOpen;
     if (on) ensureMini();
     // one brain, not two: the copy that takes over continues the other's angle
-    if (miniHero && !isOpen && on !== wasOn) { if (on) miniHero.setView(hero.getView()); else hero.setView(miniHero.getView()); }
+    if (miniHero && !isOpen && on !== wasOn) { if (on) miniHero.setView({ ...hero.getView(), vel: 1.6 }); else hero.setView(miniHero.getView()); }  // a little spin (vel) as it flies in
     if (!isOpen) wasOn = on;
     bubble.classList.toggle("is-on", on || (isOpen && wasOn));
-    bubble.classList.toggle("is-popped", isOpen || popAnim);
+    bubble.classList.toggle("is-popped", isOpen || !!popAnim);
     bubble.tabIndex = on ? 0 : -1;
     bubble.setAttribute("aria-hidden", String(!on));
     hero.setPaused(phone.matches && (!colVisible || isOpen));
@@ -975,55 +958,72 @@ body::after {
   addEventListener("scroll", function first() { if (phone.matches) { ensureMini(); removeEventListener("scroll", first); } }, { passive: true });
 
   // The popup grows out of where the brain was (the bubble, or the intro card) and folds back into it.
+  // The brain itself is matched, not the box: the stage is scaled so the brain lands at exactly its size there,
+  // and the dots are scaled live on the way, so the hand-over in the last frame is invisible.
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
-  const srcRect = () => {
-    if (bubbleWanted()) return bubble.getBoundingClientRect();
-    if (colVisible) { const r = root.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) return r; }
+  const lookOf = (el) => { const cs = getComputedStyle(el); return { fit: parseFloat(cs.getPropertyValue("--brain-fit")) || 1, dot: parseFloat(cs.getPropertyValue("--brain-dot")) || 1 }; };
+  let bubbleLook = { fit: 1.3, dot: 1 };
+  const srcOf = () => {
+    if (bubbleWanted()) return { rect: bubble.getBoundingClientRect(), ...bubbleLook, circle: true };
+    if (colVisible) { const r = root.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) return { rect: r, ...lookOf(root), circle: false }; }
     return null;
   };
-  function flip(from, open) {
-    const r = popStage.getBoundingClientRect(), side = Math.min(r.width, r.height), big = Math.hypot(r.width, r.height) / 2 + 2;
-    const d = Math.min(from.width, from.height), s = d / side;
-    const dx = from.left + from.width / 2 - (r.left + r.width / 2), dy = from.top + from.height / 2 - (r.top + r.height / 2);
-    const small = { transform: `translate(${dx}px, ${dy}px) scale(${s})`, clipPath: `circle(${side / 2}px at 50% 50%)` };
+  // mirrors the component: brain diameter = fit × shorter side; dot px ∝ k × fit × min(1, w/h), k = clamp(shorter/720) × dot
+  const kOf = (w, h, dot) => Math.min(1, Math.max(0.15, Math.min(w, h) / 720)) * dot;
+  function flip(src, open) {
+    const r = popStage.getBoundingClientRect(), f = src.rect, big = Math.hypot(r.width, r.height) / 2 + 2;
+    const pl = lookOf(mini);
+    const s = (src.fit * Math.min(f.width, f.height)) / (pl.fit * Math.min(r.width, r.height));
+    const dotSrc = kOf(f.width, f.height, src.dot) * src.fit * Math.min(1, f.width / f.height);
+    const dotPop = kOf(r.width, r.height, pl.dot) * pl.fit * Math.min(1, r.width / r.height);
+    const dEnd = dotSrc / (dotPop * s);
+    const dx = f.left + f.width / 2 - (r.left + r.width / 2), dy = f.top + f.height / 2 - (r.top + r.height / 2);
+    const rad = src.circle ? Math.min(f.width, f.height) / 2 / s : Math.hypot(f.width, f.height) / 2 / s;
+    const small = { transform: `translate(${dx}px, ${dy}px) scale(${s})`, clipPath: `circle(${rad}px at 50% 50%)` };
     const full = { transform: "translate(0, 0) scale(1)", clipPath: `circle(${big}px at 50% 50%)` };
-    return popStage.animate(open ? [small, full] : [full, small], open
+    const a = popStage.animate(open ? [small, full] : [full, small], open
       ? { duration: 560, easing: "cubic-bezier(.2, .9, .25, 1.04)" }
-      : { duration: 380, easing: "cubic-bezier(.5, 0, .3, 1)", fill: "forwards" });
+      : { duration: 450, easing: "cubic-bezier(.45, 0, .2, 1.1)", fill: "forwards" });  // a soft landing with a hint of overshoot
+    miniHero.setDot(open ? dEnd : 1);
+    const step = () => {  // dots follow the same eased progress as the box
+      if (a.playState !== "running" && a.playState !== "pending") { if (open) miniHero.setDot(1); return; }
+      const p = a.effect.getComputedTiming().progress ?? (open ? 1 : 0);
+      miniHero.setDot(open ? dEnd + (1 - dEnd) * p : 1 + (dEnd - 1) * p);
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    return a;
   }
-  // «крути пальцем» on the first opening only; gone at the first touch or after 6 s
-  const hint = document.getElementById("pop-hint");
-  let hintTimer = 0, hintSeen = false;
-  try { hintSeen = localStorage.getItem("brainHint") === "1"; } catch (e) {}
-  const hideHint = () => { clearTimeout(hintTimer); if (!hint.classList.contains("is-on")) return; hint.classList.remove("is-on"); hintSeen = true; try { localStorage.setItem("brainHint", "1"); } catch (e) {} };
-  popStage.addEventListener("pointerdown", hideHint, true);
 
   function openPop() {
     if (isOpen) return;
-    ensureMini(); clearTimeout(closeTimer); if (popAnim) { popAnim.cancel(); popAnim = null; }
-    const from = srcRect();
+    ensureMini(); clearTimeout(closeTimer); if (popAnim) { popAnim.cancel(); popAnim = null; miniHero.setDot(1); }
+    if (mini.parentNode === bubble) bubbleLook = lookOf(mini);
+    const src = srcOf();
     if (!bubbleWanted()) miniHero.setView(hero.getView());  // opened from the intro card: same angle as there
     isOpen = popFull = true; popF = 0; popStage.appendChild(mini); apply(); buildPopTl(); placePopTl();
     pop.classList.add("is-open"); pop.setAttribute("aria-hidden", "false");
     document.documentElement.classList.add("is-pop");
     sync(); closeBtn.focus({ preventScroll: true });
-    if (from && !reduce.matches) flip(from, true);
-    if (!hintSeen) { clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.classList.add("is-on"); hintTimer = setTimeout(hideHint, 6000); }, 450); }
+    if (src && !reduce.matches) popAnim = flip(src, true);
   }
   function closePop() {
     if (!isOpen) return;
-    isOpen = false; hideHint();
+    isOpen = false;
+    if (popAnim) { popAnim.cancel(); popAnim = null; }
+    popFull = false; apply();  // the slice eases back to the page's own on the way, not at the end
+    miniHero.resetZoom(true);  // zoom eases back to 1× while the brain flies home, not with a jump at the end
     pop.classList.remove("is-open"); pop.setAttribute("aria-hidden", "true");
     document.documentElement.classList.remove("is-pop");
+    if (!bubbleWanted()) hero.setView(miniHero.getView());  // back to the intro card: it shows the angle the popup was left at
     const done = () => {
       clearTimeout(closeTimer); if (isOpen || mini.parentNode === bubble) return;
+      popFull = false; miniHero.resetZoom(); miniHero.setDot(1); apply(); bubble.appendChild(mini);
       if (popAnim) { popAnim.cancel(); popAnim = null; }
-      popFull = false; miniHero.resetZoom(); apply(); bubble.appendChild(mini);
-      if (!bubbleWanted()) hero.setView(miniHero.getView());  // back to the intro card with the angle it was left at
       sync();
     };
-    const to = srcRect();
-    if (to && !reduce.matches) { popAnim = flip(to, false); popAnim.onfinish = done; closeTimer = setTimeout(done, 600); }
+    const to = srcOf();
+    if (to && !reduce.matches) { popAnim = flip(to, false); popAnim.onfinish = done; closeTimer = setTimeout(done, 700); }
     else closeTimer = setTimeout(done, 280);  // move back after the fade
     sync();
     if (bubbleWanted()) bubble.focus({ preventScroll: true });
