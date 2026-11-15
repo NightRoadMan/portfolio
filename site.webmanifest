@@ -1,0 +1,11 @@
+{
+  "name": "Портфолио Артема",
+  "short_name": "Артём",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#050807",
+  "background_color": "#050807",
+  "display": "browser"
+}
