@@ -358,7 +358,7 @@ export function mountBrainHero(root, opts = {}) {
     tilt.position.set(parseFloat(cs.getPropertyValue('--brain-offset-x')) || 0, parseFloat(cs.getPropertyValue('--brain-offset-y')) || 0, 0);
     // points have a fixed pixel size, so a small canvas packs them densely and the additive blend burns to white:
     // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
-    renderer._bhK = Math.min(1, Math.max(0.15, Math.min(w, h) / 720));  // floor 0.15: the page's small bubble brain
+    renderer._bhK = Math.min(1, Math.max(0.15, Math.min(w, h) / 720)) * (parseFloat(cs.getPropertyValue('--brain-dot')) || 1);  // floor 0.15: the page's small bubble brain; --brain-dot multiplies the dot size
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
     S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
     for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
