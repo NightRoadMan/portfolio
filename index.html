@@ -270,6 +270,48 @@ body::after {
 .about .text { display: grid; gap: var(--s-4); }
 .about p { margin: 0; max-width: 58ch; color: var(--fg-2); }
 .about p strong { color: var(--fg); font-weight: var(--w-regular); }
+/* about (desktop): the brain has left with the projects, so this part runs gutter to gutter (variant B):
+   a big statement, the approach in two text columns, a four-column career table, contacts as one row of cells */
+@media (min-width: 768px) {
+  .about { max-width: none; margin-right: max(var(--gutter), env(safe-area-inset-right, 0px)); gap: var(--s-16); padding-top: var(--s-24); }
+  .about .text.is-2col { display: block; columns: 2 28ch; column-gap: var(--s-12); }
+  .about .text.is-2col p { break-inside: avoid; }
+  .about .text.is-2col p + p { margin-top: var(--s-4); }
+}
+.about .about-lead { margin: 0; max-width: 18ch; font-family: var(--font-head); font-weight: 300; font-size: clamp(1.75rem, 1rem + 3.4vw, 4.5rem); line-height: 1.12; letter-spacing: -0.01em; text-wrap: balance; color: var(--fg); }
+
+/* career: year | company | role | what I did; the company is written once, EPAM promotions are sub-rows;
+   hairlines only between companies; the current year carries a mint dot */
+.career { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.career th { padding: 0 var(--s-6) var(--s-3) 0; font-family: var(--font-mono); font-size: var(--t-meta); font-weight: var(--w-regular); letter-spacing: 0.02em; text-align: left; color: var(--fg-3); }
+.career th:first-child { width: 8ch; }
+.career th:nth-child(2) { width: 24%; }
+.career th:nth-child(3) { width: 26%; }
+.career tbody { border-top: 1px solid var(--line); }
+.career tbody:last-child { border-bottom: 1px solid var(--line); }
+.career td { padding: var(--s-1) var(--s-6) var(--s-1) 0; vertical-align: top; }
+.career tr:first-child td { padding-top: var(--s-4); }
+.career tr:last-child td { padding-bottom: var(--s-4); }
+.career td:last-child, .career th:last-child { padding-right: 0; }
+.cr-yr { padding-top: calc(var(--s-1) + 3px); font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.02em; color: var(--fg-3); white-space: nowrap; }
+.career tr:first-child .cr-yr { padding-top: calc(var(--s-4) + 3px); }
+.cr-dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+.cr-co { color: var(--fg); }
+.cr-co small { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: var(--t-meta); line-height: var(--lh-meta); color: var(--fg-3); }
+.cr-role { color: var(--fg-2); }
+.career tr:first-child .cr-role { color: var(--fg); }
+.cr-what { max-width: 52ch; font-size: var(--t-secondary); color: var(--fg-2); }
+.career tbody.is-past .cr-co, .career tbody.is-past .cr-role { color: var(--fg-2); }
+@media (max-width: 767.98px) {
+  .career thead { display: none; }
+  .career, .career tbody, .career tr { display: block; }
+  .career tr { display: grid; grid-template-columns: 6ch minmax(0, 1fr); column-gap: var(--s-4); row-gap: var(--s-1); }
+  .career td { display: block; padding: 0 !important; }
+  .career .cr-yr { grid-row: span 3; padding-top: 3px !important; }
+  .career td:empty { display: none; }
+  .career tbody { padding-block: var(--s-4); display: grid; gap: var(--s-2); }
+  .career .cr-role { font-size: var(--t-secondary); }
+}
 .contacts { display: grid; gap: 0; margin: var(--s-4) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .contacts li { border-bottom: 1px solid var(--line); }
 .contact {
@@ -279,6 +321,21 @@ body::after {
 }
 .contact .contact-v { color: var(--accent); text-align: right; overflow-wrap: anywhere; transition: opacity 120ms var(--ease); }  /* label white, value mint */
 .contact:hover .contact-v { opacity: .75; }
+@media (min-width: 768px) {
+  .contacts.is-row { grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; border-bottom: 1px solid var(--line); }
+  .contacts.is-row li { border-bottom: 0; }
+  .contacts.is-row li + li { border-left: 1px solid var(--line); }
+  .contacts.is-row .contact { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--s-2); height: 100%; padding: var(--s-6) var(--s-4); }
+  .contacts.is-row li:first-child .contact { padding-left: 0; }
+  .contacts.is-row .contact-k { font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.02em; text-transform: lowercase; color: var(--fg-3); }
+  .contacts.is-row .contact-v { text-align: left; font-size: clamp(1rem, 0.9rem + 0.4vw, 1.25rem); }
+}
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  .contacts.is-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .contacts.is-row li:nth-child(4) { border-left: 0; }
+  .contacts.is-row li:nth-child(4) .contact { padding-left: 0; }
+  .contacts.is-row li:nth-child(n+4) { border-top: 1px solid var(--line); }
+}
 /* footer: just the name, big and centred (same on desktop and phones) */
 .foot { display: flex; justify-content: center; padding-top: var(--s-16); }
 .about .foot-sign {
@@ -535,22 +592,41 @@ body::after {
   </section>
 
   <section class="about" id="about" aria-labelledby="about-title">
-    <h2 class="label" id="about-title"><span>обо мне</span><span>2017 — 2026</span></h2>
+    <h2 class="label" id="about-title"><span>обо мне</span><span>7 лет · 2019 — 2026</span></h2>
+    <p class="about-lead">Веду продукт от исследования и первых идей до прототипа, тестов и запуска.</p>
+    <div class="cols">
+      <div class="mono faint">подход</div>
+      <div class="text is-2col">
+        <p><strong>Понимаю, как устроена разработка, поэтому мои решения не остаются на макетах.</strong> Умею просто рассказывать о сложном: через прототипы, презентации и визуальные истории.</p>
+        <p>В НаПоправку курирую отдел продуктового дизайна. До этого два года руководил дизайном на проектах Syngenta в EPAM: 14 дизайнеров на 12 проектах. Стоял у истоков дизайн-системы SynUI, сейчас на ней больше 30 внутренних B2B-продуктов. Из шести пресейлов четыре выиграли и принесли EPAM новые проекты.</p>
+        <p>Дизайн-системы и токены, мобильные и адаптивные интерфейсы, interaction design. Исследования: интервью, JTBD, CJM, персоны, воркшопы, метрики и гипотезы.</p>
+      </div>
+    </div>
     <div class="cols">
       <div class="mono faint">карьера</div>
-      <div class="text">
-        <p><strong>Начинал с интерфейсов для небольших студий, потом ушёл в продуктовые команды.</strong> Работаю на стыке исследований и интерфейса: сначала разбираюсь, где пользователь теряется, потом проектирую так, чтобы это место исчезло. Люблю системы, которые переживают смену команды.</p>
-        <p>Инструменты: Figma, FigJam, Protopie, немного кода на фронтенде. Провожу интервью и юзабилити-тесты сам, без отдельного исследователя.</p>
-      </div>
+      <table class="career">
+        <thead><tr><th scope="col">год</th><th scope="col">компания</th><th scope="col">роль</th><th scope="col">чем занимался</th></tr></thead>
+        <tbody class="is-cur">
+          <tr><td class="cr-yr"><span class="cr-dot" aria-label="сейчас"></span>2025</td><td class="cr-co">НаПоправку<small>октябрь 2025 — сейчас</small></td><td class="cr-role">Lead Product Designer</td><td class="cr-what">Курирую отдел из трёх дизайнеров. Создал дизайн-систему на семантических токенах, перевёл тёмную тему из разработки в дизайн, участвовал в передаче токенов через GitLab. Работаю в командах Telemed App и Growth and Monetization.</td></tr>
+        </tbody>
+        <tbody>
+          <tr><td class="cr-yr">2025</td><td class="cr-co">EPAM Systems<small>2020 — 2025</small></td><td class="cr-role">Lead Experience Designer</td><td class="cr-what">LifeScience, проекты Syngenta. Команда из 14 дизайнеров, дизайн-система SynUI, пресейлы.</td></tr>
+          <tr><td class="cr-yr">2022</td><td class="cr-co"></td><td class="cr-role">Senior UX Designer</td><td class="cr-what"></td></tr>
+          <tr><td class="cr-yr">2020</td><td class="cr-co"></td><td class="cr-role">Middle UX Designer</td><td class="cr-what"></td></tr>
+        </tbody>
+        <tbody class="is-past">
+          <tr><td class="cr-yr">2019</td><td class="cr-co">Lorett Digital</td><td class="cr-role">UX/UI Designer</td><td class="cr-what">Мобильные приложения для буровых бригад, сервиса медитаций и доставки еды.</td></tr>
+        </tbody>
+      </table>
     </div>
     <div class="cols" id="contact">
       <div class="mono faint">связь со мной</div>
-      <ul class="contacts">
-        <li><button class="contact" type="button" data-copy="kvadrolee@mail.ru" aria-label="Email kvadrolee@mail.ru, скопировать">Email <span class="contact-v">kvadrolee@mail.ru</span></button></li>
-        <li><a class="contact" href="https://t.me/nightroadman" target="_blank" rel="noopener">Telegram <span class="contact-v">@nightroadman</span></a></li>
-        <li><a class="contact" href="https://www.instagram.com/dixset/" target="_blank" rel="noopener">Instagram <span class="contact-v">@dixset</span></a></li>
-        <li><a class="contact" href="https://dribbble.com/nightroadman" target="_blank" rel="noopener">Dribbble <span class="contact-v">Nightroadman</span></a></li>
-        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf">Резюме <span class="contact-v">Скачать CV</span></a></li>
+      <ul class="contacts is-row">
+        <li><button class="contact" type="button" data-copy="kvadrolee@mail.ru" aria-label="Email kvadrolee@mail.ru, скопировать"><span class="contact-k">Email</span> <span class="contact-v">kvadrolee@mail.ru</span></button></li>
+        <li><a class="contact" href="https://t.me/nightroadman" target="_blank" rel="noopener"><span class="contact-k">Telegram</span> <span class="contact-v">@nightroadman</span></a></li>
+        <li><a class="contact" href="https://www.instagram.com/dixset/" target="_blank" rel="noopener"><span class="contact-k">Instagram</span> <span class="contact-v">@dixset</span></a></li>
+        <li><a class="contact" href="https://dribbble.com/nightroadman" target="_blank" rel="noopener"><span class="contact-k">Dribbble</span> <span class="contact-v">Nightroadman</span></a></li>
+        <li><a class="contact" href="resume.pdf" download="artem-resume.pdf"><span class="contact-k">Резюме</span> <span class="contact-v">Скачать CV</span></a></li>
       </ul>
     </div>
     <div class="foot">
@@ -578,29 +654,30 @@ body::after {
 
 <script>
 (function () {
+  // Texts from the «Portfolio 2025» deck. Years are approximate for now (Артем, 2026-11-15): the deck goes newest → oldest from 2025.
   const projects = [
-    { id: "polosa-business", year: 2026, period: "2025 — сейчас", title: "Банк для малого бизнеса", company: "Полоса", device: "phone", platforms: "iOS, Android", link: "", case: "polosa-business/",
-      achievements: ["Пересобрал главный экран под три частых сценария предпринимателя: оплатить счёт, проверить поступления, выставить счёт.", "Убрал шесть экранов из сценария оплаты счёта, время оплаты сократилось на 38%.", "Провёл 14 интервью с клиентами и выстроил вместе с продактом бэклог гипотез на полгода."] },
-    { id: "polosa-ds", year: 2025, period: "2024 — 2025", title: "Дизайн-система «Грань»", company: "Полоса", platforms: "Web, iOS, Android", link: "",
-      achievements: ["Собрал единую систему для трёх платформ: токены, 64 компонента и документацию.", "Настроил процесс приёма изменений от продуктовых команд и ревью компонентов вместе с разработкой.", "Перевёл на систему 11 продуктовых команд, время сборки нового экрана сократилось вдвое."] },
-    { id: "clinic-booking", year: 2024, period: "2023 — 2024", title: "Запись к врачу за три шага", company: "Здравица", platforms: "Web", link: "",
-      achievements: ["Исследовал, почему пациенты бросают запись на выборе времени: аналитика воронки и 10 юзабилити-тестов.", "Перепроектировал шаг выбора времени вокруг ближайших свободных окон.", "Доля завершённых записей выросла на 21%."] },
-    { id: "clinic-doctor", year: 2023, period: "2023", title: "Кабинет врача", company: "Здравица", platforms: "Web, планшет", link: "",
-      achievements: ["Собрал рабочее место врача на приёме: расписание, карта пациента и назначения на одном экране.", "Провёл наблюдения за приёмами в двух клиниках и выделил лишние действия врача.", "Экономия около 4 минут на каждом приёме."] },
-    { id: "logist-analytics", year: 2022, period: "2021 — 2022", title: "Аналитика для логистов", company: "Маршрут", platforms: "Web", link: "",
-      achievements: ["Спроектировал панель диспетчера: где машины, кто опаздывает и почему.", "Разработал систему плотных таблиц и графиков, которая остаётся читаемой при сотнях строк.", "Продукт вырос до 320 компаний-клиентов."] },
-    { id: "logist-onboarding", year: 2021, period: "2021", title: "Онбординг перевозчиков", company: "Маршрут", platforms: "Web", link: "",
-      achievements: ["Разбил длинную анкету регистрации на шаги с проверкой документов.", "Добавил сохранение черновика, чтобы к анкете можно было вернуться позже.", "Завершённых анкет стало в два раза больше."] },
-    { id: "food-delivery", year: 2020, period: "2019 — 2020", title: "Доставка из фермерских лавок", company: "Грядка", device: "phone", platforms: "iOS, Android", link: "",
-      achievements: ["Вёл продукт целиком: от интервью с фермерами до запуска в сторах.", "Спроектировал каталог, корзину и выбор слотов доставки.", "Рейтинг приложения в App Store 4,8."] },
-    { id: "studio-sites", year: 2018, period: "2017 — 2019", title: "Сайты для студии", company: "Студия «Контур»", platforms: "Web", link: "",
-      achievements: ["Сделал около тридцати сайтов и лендингов для малого бизнеса.", "Научился работать с клиентом, сроками и вёрсткой.", "Понял, что хочу заниматься продуктом."] }
+    { id: "cso", year: 2025, period: "2024 — 2025", title: "Chemical Search and Ordering", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Собрал в одну платформу заказ химических веществ для учёных трёх площадок Syngenta: Stein, Jealott’s Hill и Goa. Внутренних заказов стало на 40% больше в месяц, поисковых запросов на 42%.", "Вёл команду из трёх дизайнеров. Провёл интервью на трёх площадках, собрал три персоны и CJM.", "Проверил 26 гипотез на модерируемых тестах и в Maze, 16 легли в MVP. Отстоял самый сбалансированный из четырёх вариантов MVP, его запустили за 8 месяцев."] },
+    { id: "agrigear", year: 2024, period: "2024", title: "AgriGear", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Спроектировал аналитику генов больше 40 видов растений: поиск по условиям, по генам и по похожей экспрессии, интерактивные графики.", "Работал внешним UX-дизайнером на стороне клиента и разобрался в генетике без прямого доступа к экспертам.", "Переиспользовал паттерны и код из похожих проектов, это ускорило разработку MVP и снизило затраты."] },
+    { id: "automation-demonstrator", year: 2024, period: "2023 — 2024", title: "Automation Demonstrator", company: "Syngenta · EPAM", platforms: "Web, AI", link: "",
+      achievements: ["Сделал прототипы проверки этикеток химической продукции с помощью ИИ на базе Gemini. Они стали главным аргументом при защите концепции и помогли получить бюджет на MVP.", "Спроектировал новый тип взаимодействия через команды в чате и компоненты, которые показывают любые ответы ИИ: списки, таблицы, текст со ссылками.", "Провёл интервью с пользователями и расширил список документов, которые проверяет система."] },
+    { id: "visitors-tool", year: 2023, period: "2023", title: "Visitors Organization Tool", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Заменил Excel и устаревший Filemaker на сервис планирования визитов и экскурсий на объекты Syngenta. От исследования до релиза ушло 4 спринта.", "Предложил календарь как основной способ управлять заявками, а для поиска сделал режим списка. Форму для гостей разбил на четыре блока с учётом GDPR.", "На тестах пользователи справлялись без обучения. После релиза решение попросили масштабировать на UK."] },
+    { id: "fermentation-hub", year: 2023, period: "2022 — 2023", title: "Fermentation Data Hub", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Собрал данные с разных ферментёров в одну систему: мониторинг в реальном времени, сравнение партий, первичный анализ. График держит до 1 млн точек без потери производительности.", "Провёл воркшоп с пользователями и стейкхолдерами по Value Proposition Canvas, чтобы выделить реальные задачи биоинженеров.", "Продумал интеграцию с Benchling и EVE: импорт протоколов и экспорт расчётов."] },
+    { id: "publication-approval", year: 2022, period: "2022", title: "Publication Approval Tool", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Перевёл согласование публикаций из переписки в цифровой процесс. Среднее время согласования сократилось на 63%, запросов стало в 2,1 раза больше.", "Спроектировал универсальную форму запроса, комментарии к запросам и файлам и уведомления о каждом этапе.", "Сделал админку для согласующих: замена на заместителей, пропуск и изменение шагов. 75% согласующих отметили, что процесс стал прозрачным."] },
+    { id: "reaction-data", year: 2021, period: "2021", title: "Reaction Data Management", company: "Syngenta · EPAM", platforms: "Web", link: "",
+      achievements: ["Заменил Excel и устаревшую ELN-систему визуальной настройкой реакционных пластин. Подготовка пластин стала быстрее на 45%, ввод данных в 2,6 раза.", "Провёл интервью с химиками и спроектировал больше 80 экранов: таблицы, фильтры, визуализацию данных и переходы между этапами эксперимента.", "Платформой пользуются лаборатории в Швейцарии, Индии и Германии."] },
+    { id: "breathing-b", year: 2020, period: "2020", title: "b: дыхательные практики", company: "Стартап", device: "phone", platforms: "iOS, Android, IoT", link: "",
+      achievements: ["Спроектировал приложение к умному устройству b, которое следит за дыханием и подбирает персональные программы. Проект вышел на Indiegogo.", "Сделал режим Live: сессия начинается с первого вдоха, без лишних шагов.", "Продумал мотивацию (бейджи, цели, прогресс) и работу при нестабильном Bluetooth."] }
   ];
 
   const total = projects.length;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  document.getElementById("work-count").textContent = total + " · 2017 — 2026";
+  document.getElementById("work-count").textContent = total + " · 2020 — 2025";
   document.getElementById("work-list").innerHTML = projects.map((p) => `
     <article class="project" id="${p.id}" aria-labelledby="t-${p.id}">
       <div class="p-meta">
@@ -952,13 +1029,24 @@ body::after {
     bubble.classList.toggle("is-popped", isOpen || !!popAnim);
     bubble.tabIndex = on ? 0 : -1;
     bubble.setAttribute("aria-hidden", String(!on));
-    hero.setPaused(phone.matches && (!colVisible || isOpen));
+    hero.setPaused(!colVisible || (phone.matches && isOpen));  // desktop: paused once it has left with the projects
     if (miniHero) miniHero.setPaused(!on && !isOpen);
   }
   new IntersectionObserver(([e]) => {
     colVisible = e.isIntersecting; colAbove = e.boundingClientRect.bottom <= 0; sync();
   }).observe(col);
   phone.addEventListener("change", () => { if (!phone.matches && isOpen) closePop(); sync(); });
+  // Desktop: the brain ends with the projects. As «обо мне» comes up from the bottom of the screen,
+  // the fixed brain column is pushed up by exactly as much, so it leaves glued to the last project.
+  const aboutEl = document.getElementById("about");
+  function liftBrain() {
+    const shift = phone.matches ? 0 : Math.max(0, Math.min(innerHeight, innerHeight - aboutEl.getBoundingClientRect().top));
+    col.style.transform = shift ? `translate3d(0, ${-shift.toFixed(1)}px, 0)` : "";
+  }
+  addEventListener("scroll", liftBrain, { passive: true });
+  addEventListener("resize", liftBrain);
+  phone.addEventListener("change", liftBrain);
+  liftBrain();
   // load the bubble's brain as soon as the reader starts scrolling, so it is ready by the time the card is gone
   addEventListener("scroll", function first() { if (phone.matches) { ensureMini(); removeEventListener("scroll", first); } }, { passive: true });
 
