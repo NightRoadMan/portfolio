@@ -359,25 +359,25 @@ body::after {
 }
 
 /* ---------- Narrow ---------- */
-/* handwritten note under the brain, arrow up to it: the text writes itself, then the arrow draws;
+/* handwritten note above the brain, top left, arrow down into it: the text writes itself, then the arrow draws;
    stays 10 s, then fades out */
 .brain-note {
   --r: calc(0.305 * min(100vh, var(--bw)));
   position: absolute; z-index: 4; margin: 0; width: 110px; height: 80px; pointer-events: none;
-  left: calc(var(--bw) * 0.414 - var(--r) * 0.72 - 110px);
-  top: calc(50vh + var(--r) * 0.42);
+  left: calc(var(--bw) * 0.414 - var(--r) * 0.55 - 110px);
+  top: calc(50vh - var(--r) * 1.14);
   color: var(--fg); opacity: 0; visibility: hidden;
   transition: opacity 800ms var(--ease), visibility 0s linear 800ms;
 }
-.brain-note { translate: 0 var(--note-dy, 0px); }  /* JS nudges it down if it would touch the intro text */
+.brain-note { translate: 0 var(--note-dy, 0px); }  /* JS nudges it up if it would touch the intro text */
 .brain-note.is-on { opacity: 1; visibility: visible; transition: opacity 200ms var(--ease); }
 .brain-note-text {
-  position: absolute; right: calc(100% - 24px); top: calc(100% + 2px); white-space: nowrap;
+  position: absolute; right: calc(100% - 24px); bottom: calc(100% + 2px); white-space: nowrap;
   font-family: "Caveat", "Segoe Print", cursive; font-weight: 500; font-size: 26px; line-height: 1.1;
-  transform: rotate(-3deg); transform-origin: right top;
+  transform: rotate(-3deg); transform-origin: right bottom;
   clip-path: inset(-20% 100% -20% 0);
 }
-.brain-note-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform: scaleY(-1); }
+.brain-note-arrow { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .brain-note-arrow path { stroke-dasharray: 1; stroke-dashoffset: 1; }
 .brain-note-arrow.is-narrow { display: none; }
 .brain-note.is-on .brain-note-text { clip-path: inset(-20% -5% -20% 0); transition: clip-path 1500ms cubic-bezier(.45,.1,.55,.95) 150ms; }
@@ -757,8 +757,8 @@ body::after {
 
   // "Кстати, это реальное МРТ моего мозга": appears once the page settles, goes away after 10 seconds
   const note = document.getElementById("brain-note");
-  // desktop: the note sits left of the brain, in the gap next to the bio; on narrower screens it would touch the
-  // text, so push it down below the bio (or skip it when there is no room left on screen)
+  // desktop: the note sits top left of the brain, under the menu; on narrower screens it could touch the
+  // greeting, so lift it above the text (or skip it when that would run into the menu)
   function placeNote() {
     note.style.removeProperty("--note-dy");
     if (!wide.matches) return true;
@@ -767,10 +767,11 @@ body::after {
     document.querySelectorAll(".intro h1, .intro .bio").forEach((el) => {
       const r = el.getBoundingClientRect();
       boxes.forEach((box) => {
-        if (box.right + 12 > r.left && box.left - 12 < r.right && box.bottom + 12 > r.top && box.top - 12 < r.bottom) dy = Math.max(dy, r.bottom + 16 - box.top);
+        if (box.right + 12 > r.left && box.left - 12 < r.right && box.bottom + 12 > r.top && box.top - 12 < r.bottom) dy = Math.min(dy, r.top - 16 - box.bottom);
       });
     });
-    if (Math.max(boxes[0].bottom, boxes[1].bottom) + dy > window.innerHeight - 16) return false;
+    const menu = document.querySelector("header").getBoundingClientRect().bottom;
+    if (Math.min(boxes[0].top, boxes[1].top) + dy < menu + 16) return false;
     if (dy) note.style.setProperty("--note-dy", dy.toFixed(0) + "px");
     return true;
   }
