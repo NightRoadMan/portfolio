@@ -7,7 +7,7 @@
  *   hero.setSlice(20); hero.reset(); hero.setPaused(true); hero.getView(); hero.setView(v); hero.resetZoom(); hero.destroy();
  *
  * CSS vars on the container: --brain-fit, --brain-offset-x/-y, --brain-glow, --brain-dot (dot size ×), --brain-dpr (pixel-ratio cap),
- *   --brain-zoom (max pinch zoom, >1 enables pinch + double tap), --brain-follow (0..1 lean towards the mouse), --brain-drag, --brain-spin
+ *   --brain-zoom (max pinch zoom, >1 enables pinch + double tap), --brain-follow (0..1 turn to look at the mouse), --brain-drag, --brain-spin
  *
  * Options
  *   dataUrl       folder with brain_atlas.webp|png, brain_meta.json, poster.png   (default 'data/')
@@ -301,7 +301,7 @@ export function mountBrainHero(root, opts = {}) {
     slice: 1, sliceTarget: 1, sliceFloat: 1, count: 1, navVel: 0, navDrag: false, navLastT: 0, prevSlice: 1, sliceEnergy: 0,
     intro: 0, pointerOn: 0, pointerIdle: 9,
     zoom: 1, zoomTarget: 1, follow: 0,
-    look: 0, lookIdle: 99, px: 0, py: 0, ly: 0, lp: 0,   // lean towards the mouse: weight, mouse in the window, pointer, eased turn and nod
+    look: 0, lookIdle: 99, lookBlock: 0, px: 0, py: 0, lp: 0,   // look at the mouse: weight, time since the mouse moved, pause after a drag, pointer, pitch offset
   };
   let baseZ = 3.3, dotMul = 1;   // dotMul: live dot-size factor for transitions (setDot)
 
@@ -416,18 +416,16 @@ export function mountBrainHero(root, opts = {}) {
     if (pinch) { if (pts2.size < 2) { pinch = null; S.dragging = false; S.vel = 0; } return; }
     onUp0();
   };
-  const onUp0 = () => { if (S.dragging) { S.dragging = false; el.stage.classList.remove('dragging'); S.idle = 0; if (performance.now() - S.lastT > 90) S.vel = 0; } };  // a pause before release stops the fling
+  const onUp0 = () => { if (S.dragging) { S.dragging = false; el.stage.classList.remove('dragging'); S.idle = 0; S.lookBlock = 1.2; if (performance.now() - S.lastT > 90) S.vel = 0; } };  // let a fling play out before the brain looks back at the mouse  // a pause before release stops the fling
   const onLeave = () => { S.pointerOn = 0; };
   const onKey = e => { if (e.key === 'ArrowLeft') S.yaw -= 0.15; if (e.key === 'ArrowRight') S.yaw += 0.15; };
   el.stage.addEventListener('pointerdown', onDown); el.stage.addEventListener('pointermove', onMove);
   el.stage.addEventListener('pointerup', onUp); el.stage.addEventListener('pointercancel', onUp);
   el.stage.addEventListener('pointerleave', onLeave); el.stage.addEventListener('keydown', onKey);
-  // desktop: the brain leans towards the mouse. The lean lives on the outer `tilt` group and the spin on the inner `rig`,
-  // so the spin never stops and the two never pull against each other. The lean eases out when the mouse leaves the window.
-  const _c = new THREE.Vector3();
-  tilt.rotation.order = 'YXZ';                                    // lean sideways about the screen's vertical, then nod
+  // desktop: the brain turns its face to the mouse; when the mouse rests for LOOK_HOLD s or leaves the window, the idle spin comes back
+  const LOOK_HOLD = 4, TAU = Math.PI * 2, _c = new THREE.Vector3();
   const onFollow = e => { if (e.pointerType !== 'mouse' || !S.follow) return; S.px = e.clientX; S.py = e.clientY; S.lookIdle = 0; };
-  const onFollowOut = e => { if (!e.relatedTarget) S.lookIdle = 99; };
+  const onFollowOut = e => { if (!e.relatedTarget) S.lookIdle = LOOK_HOLD; };
   addEventListener('pointermove', onFollow, { passive: true }); document.addEventListener('mouseout', onFollowOut);
 
   /* slice scale: drag with inertia, snap to major ticks, wheel, keys, optional scroll-link */
@@ -503,28 +501,32 @@ export function mountBrainHero(root, opts = {}) {
       fx.uAssemble.value = prefersReduced ? 0 : 1 - easeOut(THREE.MathUtils.clamp(S.intro / 1.6, 0, 1));
       growPlane.constant = -0.7 + (prefersReduced ? 1 : easeOut(THREE.MathUtils.clamp((S.intro - 0.35) / 2, 0, 1))) * 1.5;
     }
-    // lean towards the mouse while it is in the window (lookIdle 0 = in, 99 = out)
-    const want = S.follow && S.lookIdle < 99 ? 1 : 0;
+    S.lookIdle += dt; S.lookBlock = Math.max(0, S.lookBlock - dt);   // look at the mouse: fade in fast, hand back to the spin slowly
+    const want = S.follow && !S.dragging && !S.lookBlock && S.lookIdle < LOOK_HOLD ? 1 : 0;
     S.look += (want - S.look) * Math.min(1, dt * (want ? 2.2 : 0.8));
-    let lyT = 0, lpT = 0;
+    let lyT = 0, lpT = 0, lookW = 0;
     if (S.look > 0.001) {                                         // angles from the brain's centre on screen to the pointer
       const r = el.stage.getBoundingClientRect();
       _c.copy(tilt.position).project(camera);
       const cx = r.left + (_c.x + 1) / 2 * r.width, cy = r.top + (1 - _c.y) / 2 * r.height, D = Math.max(innerWidth, innerHeight) * 0.65;
-      lyT = THREE.MathUtils.clamp(Math.atan2(S.px - cx, D), -0.8, 0.8) * S.follow * S.look;
-      lpT = THREE.MathUtils.clamp(Math.atan2(S.py - cy, D), -0.5, 0.5) * S.follow * S.look;
+      lyT = THREE.MathUtils.clamp(Math.atan2(S.px - cx, D), -0.8, 0.8) * S.follow;
+      lpT = THREE.MathUtils.clamp(Math.atan2(S.py - cy, D) * 0.8, -0.4, 0.4) * S.follow;
     }
-    if (!S.dragging) {                                            // inertia -> slow auto rotation, always on
+    if (!S.dragging) {                                            // inertia -> slow auto rotation (or turning to the mouse)
       S.idle += dt; S.vel *= Math.exp(-dt * 3.2);
-      S.yaw += (S.vel + THREE.MathUtils.smoothstep(S.idle, 0.4, 2) * S.auto) * dt;
+      let w = S.vel + THREE.MathUtils.smoothstep(S.idle, 0.4, 2) * S.auto * (1 - S.look);
+      if (S.look > 0.001) {                                       // face front (yaw 0) + the look angle, the short way round
+        const tgt = lyT + TAU * Math.round((S.yaw - lyT) / TAU);
+        lookW = THREE.MathUtils.clamp((tgt - S.yaw) * 4, -5, 5) * S.look; w += lookW;
+      }
+      S.yaw += w * dt;
     }
     S.pitch += (S.targetPitch - S.pitch) * Math.min(1, dt * 6);
-    S.ly += (lyT - S.ly) * Math.min(1, dt * 3); S.lp += (lpT - S.lp) * Math.min(1, dt * 3);
-    rig.rotation.y = S.yaw;
-    tilt.rotation.set(S.pitch + S.lp * 0.5, S.ly * 0.55, -S.ly * 0.22);   // turn (~25°), nod (~14°) and a little roll, the top towards the mouse
+    S.lp += (lpT * S.look - S.lp) * Math.min(1, dt * 4);
+    rig.rotation.y = S.yaw; tilt.rotation.x = S.pitch + S.lp;
     if (Math.abs(S.zoomTarget - S.zoom) > 1e-4) { S.zoom += (S.zoomTarget - S.zoom) * Math.min(1, dt * 12); camera.position.z = baseZ / S.zoom; }
 
-    const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto); S.prevYaw = S.yaw;
+    const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto * (1 - S.look)) - lookW; S.prevYaw = S.yaw;  // turning to the mouse is calm: no spin smear
     S.spinEnergy = ease(S.spinEnergy, Math.min(1, Math.abs(extra) / 2.2), dt, 9, 1.1);
     fx.uSpinEnergy.value = THREE.MathUtils.smoothstep(S.spinEnergy, 0, 1);
     fx.uSpin.value = ease(fx.uSpin.value, THREE.MathUtils.clamp(extra / 3, -1, 1), dt, 8, 2.5);
