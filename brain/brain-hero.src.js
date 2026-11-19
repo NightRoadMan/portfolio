@@ -12,6 +12,7 @@
  * Options
  *   dataUrl       folder with brain_atlas.webp|png, brain_meta.json, poster.png   (default 'data/')
  *   points        number of dots                                                  (default 400000)
+ *   intro         false skips the opening animation (dots flying in, vessels growing)  (default true)
  *   scrollDriver  element whose scroll progress drives the slice (optional);
  *                 the container emits 'brainhero:scroll' with { progress } as it moves
  *
@@ -508,6 +509,7 @@ export function mountBrainHero(root, opts = {}) {
     look: 0, lookIdle: 99, lookBlock: 0, px: 0, py: 0, lp: 0,   // look at the mouse: weight, time since the mouse moved, pause after a drag, pointer, pitch offset
   };
   let baseZ = 3.3, dotMul = 1;   // dotMul: live dot-size factor for transitions (setDot)
+  if (opts.intro === false) { S.intro = 3; fx.uAssemble.value = 0; }   // no assembly: the brain is simply there
 
   async function init() {
     const vol = await loadVolume(dataUrl);

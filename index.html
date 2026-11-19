@@ -597,6 +597,57 @@ body::after {
   .about { padding: var(--s-6); }  /* 24px like the other islands, so the right-edge timeline never touches the contacts */
   .foot { padding-top: var(--s-4); }
 }
+/* desktop: a click on the brain opens it big in a popup (same one as on phones); its slice scale stands on the right like
+   the page's own, and the wheel or a drag on it moves the slice */
+@media (min-width: 768px) {
+  #brain-mini { position: absolute; inset: 0; pointer-events: none; --brain-offset-x: 0; --brain-offset-y: 0; --bh-mono: var(--font-mono); }
+  #brain-mini * { pointer-events: none; }
+  #brain-mini .bh-scale, #brain-mini .bh-loader { display: none; }
+  .brain-pop {
+    display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; z-index: 60;
+    visibility: hidden; transition: visibility 0s 520ms;
+  }
+  .brain-pop.is-open { visibility: visible; transition: visibility 0s; }
+  .brain-pop::before { content: ""; position: absolute; inset: 0; background: rgb(5 8 7 / .62); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0; transition: opacity 360ms var(--ease) 60ms; }
+  .brain-pop.is-open::before { opacity: 1; transition: opacity 320ms var(--ease); }
+  .brain-pop-stage { position: relative; width: min(88vh, calc(100vw - 280px)); height: min(88vh, calc(100vw - 280px)); }
+  .brain-pop > :not(.brain-pop-stage) { opacity: 0; transition: opacity 120ms linear; }
+  .brain-pop.is-open > :not(.brain-pop-stage) { opacity: 1; transition: opacity 260ms var(--ease) 160ms; }
+  .brain-pop #brain-mini { --brain-fit: 1.25; --brain-glow: 1; --brain-zoom: 3; --brain-drag: 1; pointer-events: auto; }  /* double click zooms in / back */
+  .brain-pop #brain-mini .bh-stage { pointer-events: auto; touch-action: none; }
+  .brain-col.is-away #brain .bh-stage { visibility: hidden; }  /* the brain is in the popup, not in two places */
+  #brain.is-openable .bh-stage { cursor: zoom-in; }  /* over the brain itself: a click opens it */
+  #brain.is-openable .bh-stage.dragging { cursor: grabbing; }
+  .brain-pop-close {
+    position: absolute; top: 24px; right: var(--gutter); width: 44px; height: 44px; padding: 0;
+    display: grid; place-items: center; border-radius: 50%; cursor: pointer; color: var(--fg);
+    background: rgb(255 255 255 / .08); border: 1px solid rgb(255 255 255 / .22);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background 160ms var(--ease), border-color 160ms var(--ease);
+  }
+  .brain-pop-close:hover { background: rgb(255 255 255 / .14); border-color: rgb(255 255 255 / .32); }
+  .brain-pop-close svg { width: 18px; height: 18px; }
+  .brain-pop-close:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 3px; }
+  /* vertical scale at the right edge: the top is the whole brain, down cuts deeper; the counter sits above it */
+  .pop-tl {
+    position: absolute; right: var(--gutter); top: 50%; transform: translateY(-50%);
+    width: 72px; height: min(56vh, 520px);
+    display: flex; flex-direction: column; align-items: flex-end;
+    touch-action: none; cursor: ns-resize; user-select: none; -webkit-user-select: none;
+  }
+  .pop-tl.is-dragging { cursor: grabbing; }
+  .pop-tl::before { content: ""; position: absolute; inset: -16px -16px -16px -24px; }  /* bigger grab area */
+  .pop-tl:focus-visible { outline: 2px solid var(--accent, #3df5af); outline-offset: 10px; border-radius: 4px; }
+  .pop-tl-n { position: absolute; right: 0; bottom: calc(100% + 18px); font-family: var(--font-mono); font-size: var(--t-meta); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; }
+  .pop-tl-n span { color: var(--fg-3); }
+  .pop-tl-track { position: relative; flex: 1; width: 100%; }
+  .pop-tl-ticks { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; }
+  .pop-tl-ticks i { width: 12px; height: 1px; background: var(--fg-3); opacity: 0.6; transition: width 120ms var(--ease), opacity 120ms var(--ease); }
+  .pop-tl-ticks i.major { width: 18px; opacity: 0.8; }
+  .pop-tl-ticks i.near { width: 26px; opacity: 1; }
+  .pop-tl-handle { position: absolute; right: 0; top: 0; width: 40px; height: 2px; margin-top: -1px; border-radius: 2px; background: var(--fg); will-change: transform; }
+  html.is-pop { overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) { .brain-pop-stage { transition: none; } }
+}
 </style>
 </head>
 <body>
@@ -691,7 +742,7 @@ body::after {
   </section>
 </main>
 
-<!-- phones: the brain bubble (after the intro) and its full-width popup; the same #brain-mini instance moves between them -->
+<!-- phones: the brain bubble (after the intro) and its full-width popup; the same #brain-mini instance moves between them. Desktop: the same popup opens from a click on the brain -->
 <div class="brain-bubble" id="brain-bubble" role="button" tabindex="-1" aria-hidden="true" aria-label="Открыть мой мозг" aria-haspopup="dialog" aria-controls="brain-pop">
   <div id="brain-mini"></div>
 </div>
@@ -1017,7 +1068,7 @@ body::after {
 </script>
 <script type="module">
   // BrainTM: scrolling the projects moves the axial slice from the top of the brain down.
-  import { mountBrainHero } from "./brain/brain-hero.js?v=20";
+  import { mountBrainHero } from "./brain/brain-hero.js?v=21";
   const root = document.getElementById("brain");
   const counter = document.getElementById("slice-counter");
   const tlN = document.getElementById("tl-n");
@@ -1092,7 +1143,7 @@ body::after {
   let colVisible = true, colAbove = false, isOpen = false, closeTimer = 0, popAnim = null;
   const ensureMini = () => {
     if (miniHero) return;
-    miniHero = mountBrainHero(mini, { dataUrl: "brain/data/", points: dots });
+    miniHero = mountBrainHero(mini, { dataUrl: "brain/data/", points: dots, intro: phone.matches });  // desktop: it only ever shows up in the popup, already assembled
     miniHero.setPaused(true);  // loads now, starts drawing (and assembling) when it first appears
     apply();
   };
@@ -1108,13 +1159,13 @@ body::after {
     bubble.classList.toggle("is-popped", isOpen || !!popAnim);
     bubble.tabIndex = on ? 0 : -1;
     bubble.setAttribute("aria-hidden", String(!on));
-    hero.setPaused(!colVisible || (phone.matches && isOpen));  // desktop: paused once it has left with the projects
+    hero.setPaused(!colVisible || isOpen);  // desktop: paused once it has left with the projects, and while the popup has the brain
     if (miniHero) miniHero.setPaused(!on && !isOpen);
   }
   new IntersectionObserver(([e]) => {
     colVisible = e.isIntersecting; colAbove = e.boundingClientRect.bottom <= 0; sync();
   }).observe(col);
-  phone.addEventListener("change", () => { if (!phone.matches && isOpen) closePop(); sync(); });
+  phone.addEventListener("change", () => { if (isOpen) closePop(); sync(); });
   // Desktop: the brain ends with the projects. As «обо мне» comes up from the bottom of the screen,
   // the docked brain column is pushed up by exactly as much, so it leaves glued to the last project.
   const aboutEl = document.getElementById("about");
@@ -1135,8 +1186,18 @@ body::after {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const lookOf = (el) => { const cs = getComputedStyle(el); return { fit: parseFloat(cs.getPropertyValue("--brain-fit")) || 1, dot: parseFloat(cs.getPropertyValue("--brain-dot")) || 1 }; };
   let bubbleLook = { fit: 1.3, dot: 1 };
+  // desktop: the brain is drawn at 41.4% of its (scaled, shifted) stage, ~0.61 × the stage's shorter side across
+  const deskBrain = () => {
+    const st = root.querySelector(".bh-stage"); if (!st) return null;
+    const r = st.getBoundingClientRect();
+    return { r, cx: r.left + r.width * 0.414, cy: r.top + r.height / 2, rad: 0.305 * Math.min(r.width, r.height) };
+  };
   const srcOf = () => {
     if (bubbleWanted()) return { rect: bubble.getBoundingClientRect(), ...bubbleLook, circle: true };
+    if (!phone.matches) {  // a box of the stage's size centred on the brain, so the popup's centred brain lands on it
+      const b = colVisible && deskBrain(); if (!b || b.cy + b.rad < 0 || b.cy - b.rad > innerHeight) return null;
+      return { rect: { left: b.cx - b.r.width / 2, top: b.r.top, width: b.r.width, height: b.r.height }, ...lookOf(root), circle: false };
+    }
     if (colVisible) { const r = root.getBoundingClientRect(); if (r.bottom > 0 && r.top < innerHeight) return { rect: r, ...lookOf(root), circle: false }; }
     return null;
   };
@@ -1173,7 +1234,9 @@ body::after {
     if (mini.parentNode === bubble) bubbleLook = lookOf(mini);
     const src = srcOf();
     if (!bubbleWanted()) miniHero.setView(hero.getView());  // opened from the intro card: same angle as there
-    isOpen = popFull = true; popF = 0; popStage.appendChild(mini); apply(); buildPopTl(); placePopTl();
+    isOpen = popFull = true; popF = 0; popStage.appendChild(mini); apply(); buildPopTl();
+    popTl.setAttribute("aria-orientation", phone.matches ? "horizontal" : "vertical"); popHandle.style.transform = ""; placePopTl();
+    if (!phone.matches) col.classList.add("is-away");
     pop.classList.add("is-open"); pop.setAttribute("aria-hidden", "false");
     document.documentElement.classList.add("is-pop");
     sync(); closeBtn.focus({ preventScroll: true });
@@ -1191,6 +1254,7 @@ body::after {
     const done = () => {
       clearTimeout(closeTimer); if (isOpen || mini.parentNode === bubble) return;
       popFull = false; miniHero.resetZoom(); miniHero.setDot(1); apply(); bubble.appendChild(mini);
+      col.classList.remove("is-away");
       if (popAnim) { popAnim.cancel(); popAnim = null; }
       sync();
     };
@@ -1201,6 +1265,7 @@ body::after {
     if (bubbleWanted()) bubble.focus({ preventScroll: true });
   }
   // The popup timeline: drag or tap to move the slice; arrows step one slice. It never touches the page scroll.
+  // Phones: horizontal under the brain. Desktop: vertical at the right edge (top = whole brain), and the wheel moves it too.
   const popTl = document.getElementById("pop-tl"), popTrack = document.getElementById("pop-tl-track");
   const popTicks = document.getElementById("pop-tl-ticks"), popHandle = document.getElementById("pop-tl-handle"), popN = document.getElementById("pop-tl-n");
   let popTickEls = [], popNear = -1;
@@ -1213,30 +1278,38 @@ body::after {
   }
   function placePopTl() {
     const n = popTickEls.length || 1, i = Math.round(popF * (n - 1)), sl = n - i;
-    popHandle.style.transform = `translateX(${(popF * popTrack.clientWidth).toFixed(1)}px)`;
+    popHandle.style.transform = phone.matches ? `translateX(${(popF * popTrack.clientWidth).toFixed(1)}px)` : `translateY(${(popF * popTrack.clientHeight).toFixed(1)}px)`;
     popTl.setAttribute("aria-valuenow", sl);
     popN.innerHTML = `${String(sl).padStart(2, "0")}<span>/${n}</span>`;
     if (i !== popNear) { popTickEls.forEach((t, k) => t.classList.toggle("near", Math.abs(k - i) <= 1)); popNear = i; }
   }
   const setPopF = (f) => { popF = Math.min(1, Math.max(0, f)); apply(); placePopTl(); };
-  const popFrac = (x) => { const r = popTrack.getBoundingClientRect(); return (x - r.left) / (r.width || 1); };
+  const popFrac = (e) => { const r = popTrack.getBoundingClientRect(); return phone.matches ? (e.clientX - r.left) / (r.width || 1) : (e.clientY - r.top) / (r.height || 1); };
+  const popLen = () => phone.matches ? popTrack.clientWidth : popTrack.clientHeight;
   let popDrag = null;
   popTl.addEventListener("pointerdown", (e) => {
     e.preventDefault(); e.stopPropagation();
-    const f = popFrac(e.clientX), near = Math.abs(f - popF) * popTrack.clientWidth < 24;  // grabbing the handle keeps the offset
+    const f = popFrac(e), near = Math.abs(f - popF) * popLen() < 24;  // grabbing the handle keeps the offset
     popDrag = { id: e.pointerId, off: near ? popF - f : 0 };
     if (!near) setPopF(f);
     popTl.setPointerCapture(e.pointerId); popTl.classList.add("is-dragging");
   });
-  popTl.addEventListener("pointermove", (e) => { if (popDrag && e.pointerId === popDrag.id) setPopF(popFrac(e.clientX) + popDrag.off); });
+  popTl.addEventListener("pointermove", (e) => { if (popDrag && e.pointerId === popDrag.id) setPopF(popFrac(e) + popDrag.off); });
   const popEnd = (e) => { if (popDrag && e.pointerId === popDrag.id) { popDrag = null; popTl.classList.remove("is-dragging"); } };
   popTl.addEventListener("pointerup", popEnd); popTl.addEventListener("pointercancel", popEnd);
   popTl.addEventListener("keydown", (e) => {
-    const n = popTickEls.length || 54, step = { ArrowRight: 1, ArrowLeft: -1, Home: -n, End: n }[e.key];
+    const n = popTickEls.length || 54, step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 1, ArrowUp: -1, Home: -n, End: n }[e.key];
     if (!step) return;
     e.preventDefault(); setPopF(Math.round(popF * (n - 1) + step) / (n - 1));
   });
   addEventListener("resize", () => { if (isOpen) placePopTl(); });
+  // desktop: the wheel (or a two-finger swipe) anywhere in the popup moves the slice, ~2 slices per wheel notch
+  pop.addEventListener("wheel", (e) => {
+    if (!isOpen || phone.matches) return;
+    e.preventDefault();
+    const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY;
+    setPopF(popF + px / 2600);
+  }, { passive: false });
 
   // the bubble: a drag turns the brain, only a short still tap opens the popup
   let btap = null;
@@ -1251,20 +1324,32 @@ body::after {
     if (ok) openPop();
   }, true);
   bubble.addEventListener("pointercancel", () => { btap = null; bubble.classList.remove("is-drag"); }, true);
-  // phones: a tap on the intro brain opens the same popup (a drag still turns it, a vertical swipe still scrolls)
+  // a tap on the page brain opens the same popup (a drag still turns it, a vertical swipe still scrolls).
+  // Phones: anywhere on the card. Desktop: a click on the brain itself, not on the empty canvas around it or the scale.
   let tap = null;
-  root.addEventListener("pointerdown", (e) => { tap = phone.matches ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null; }, true);
+  const onBrain = (e) => {
+    if (phone.matches) return true;
+    if (e.target instanceof Element && e.target.closest(".bh-scale")) return false;
+    const b = deskBrain(); return !!b && Math.hypot(e.clientX - b.cx, e.clientY - b.cy) < b.rad * 1.05;
+  };
+  root.addEventListener("pointerdown", (e) => { tap = e.button === 0 && onBrain(e) ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() } : null; }, true);
   root.addEventListener("pointerup", (e) => {
     if (!tap || e.pointerId !== tap.id) return;
     const moved = Math.hypot(e.clientX - tap.x, e.clientY - tap.y), quick = performance.now() - tap.t < 350;
     tap = null;
     if (moved < 8 && quick) openPop();
   }, true);
+  // desktop: the cursor says the brain can be opened
+  root.addEventListener("pointermove", (e) => { if (!phone.matches && e.pointerType === "mouse" && !e.buttons) root.classList.toggle("is-openable", onBrain(e)); }, { passive: true });
   root.addEventListener("pointercancel", () => { tap = null; }, true);
-  if (phone.matches) setTimeout(ensureMini, 1500);  // have the popup brain ready even before the first scroll
+  setTimeout(ensureMini, phone.matches ? 1500 : 3000);  // have the popup brain ready before it is needed (desktop: the dots are shared, only the GPU upload is new)
   bubble.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPop(); } });
+  root.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target instanceof Element && e.target.closest(".bh-stage")) { e.preventDefault(); openPop(); } });  // the focused brain opens with Enter too
   closeBtn.addEventListener("click", closePop);
-  pop.addEventListener("click", (e) => { if (e.target === pop) closePop(); });  // a tap on the backdrop closes too
+  // a tap on the backdrop closes too, but not the end of a drag that began on the brain
+  let downOnBackdrop = false;
+  pop.addEventListener("pointerdown", (e) => { downOnBackdrop = e.target === pop; });
+  pop.addEventListener("click", (e) => { if (e.target === pop && downOnBackdrop) closePop(); });
   addEventListener("keydown", (e) => { if (e.key === "Escape") closePop(); });
 </script>
 </body>
