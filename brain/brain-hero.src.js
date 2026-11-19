@@ -11,7 +11,8 @@
  *
  * Options
  *   dataUrl       folder with brain_atlas.webp|png, brain_meta.json, poster.png   (default 'data/')
- *   points        number of hologram points                                       (default 110000)
+ *   points        number of dots                                                  (default 400000)
+ *   intro         false skips the opening animation (dots flying in, vessels growing)  (default true)
  *   scrollDriver  element whose scroll progress drives the slice (optional);
  *                 the container emits 'brainhero:scroll' with { progress } as it moves
  *
@@ -20,13 +21,15 @@
  * roughly -1..1), e.g. inside a media query.
  */
 import * as THREE from 'three';
+import { edgeTable, triTable } from 'three/examples/jsm/objects/MarchingCubes.js';
 
 /* ------------------------------------------------------------------ look */
 const C = {   // mint theme, base #3DF5B8
-  dots: '#c2fbe6', deep: '#3df5b8', glow: '#19c98f', dust: '#a8f7dc',
-  vessel: 0xdafff2, vesselEmis: 0x3df5b8, vein: 0x8fe0d6, veinEmis: 0x1fb39a,
-  cap: '#cdfbea', capDark: [0.02, 0.14, 0.10], hemi: [0xe6fff6, 0x062a1e], fill: 0x3df5b8, clear: 0x050807,
-  dotsOpacity: 0.7, glowOpacity: 0.05, artOpacity: 0.55, veinOpacity: 0.4, capOpacity: 0.7,
+  gm: '#a6f7d6', wm: '#1c9f78', dust: '#a8f7dc',   // grey matter (cortex) light, white matter deeper
+  vessel: 0xdafff2, vesselEmis: 0x3df5b8, vein: 0x8fe0d6, veinEmis: 0x1fb39a, shell: '#bff8e4',
+  cap: '#c4f2e0', capDark: [0.004, 0.02, 0.016], hemi: [0xe6fff6, 0x062a1e], fill: 0x3df5b8, clear: 0x050807,
+  dotsOpacity: 0.3, dotSize: 3.2, exposure: 2.6, artOpacity: 0.16, veinOpacity: 0.12, capOpacity: 0.75, shellOpacity: 1,
+  key: [-0.45, 0.62, 0.64], fillDir: [0.7, -0.35, 0.3],   // view-space light directions for the dots and the glass
 };
 
 const CSS = /* css */`
@@ -68,12 +71,18 @@ const HTML = /* html */`
 <div class="bh-loader" data-loader>LOADING SCAN</div>`;
 
 /* ------------------------------------------------------------------ shaders */
+// Dots: small soft sprites, coloured by tissue (grey/white matter) and lit by a key light + rim on the surface normal taken
+// from the volume gradient (uLit 0 = the background dust, unlit). They add up in a float buffer, and a tone-map pass turns
+// that sum into colour with a soft shoulder: dense folds read brighter without burning out to white.
 const ptVert = /* glsl */`
-  attribute float aVal, aDeep;
+  attribute float aVal, aTissue;
+  attribute vec3 aNormal;
   uniform float uSize, uClipZ, uPixelRatio, uTime, uSpin, uSpinEnergy, uSliceEnergy, uSliceVel, uSizeZ;
-  uniform float uAssemble, uFocusDepth, uPointerStrength, uAspect;
+  uniform float uAssemble, uFocusDepth, uPointerStrength, uAspect, uLit, uOpacity;
   uniform vec2 uPointer;
-  varying float vAlpha, vDeep;
+  uniform vec3 uColor, uColorDeep, uKey, uFill;
+  varying vec3 vColor;
+  varying float vAlpha;
   float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
   void main() {
     vec3 p = position;
@@ -83,9 +92,9 @@ const ptVert = /* glsl */`
     vec3 scatter = normalize(vec3(hash(position.yzx), hash(position.zxy), h) - 0.5 + 1e-4);
     p += scatter * (0.18 + 0.45 * h) * uAssemble * uAssemble;
     // rotation: tangential smear + shimmer
-    p += normalize(vec3(-p.y, p.x, 0.0) + 1e-4) * (0.25 + 0.75 * h) * uSpin * 0.09;
+    p += normalize(vec3(-p.y, p.x, 0.0) + 1e-4) * (0.25 + 0.75 * h) * uSpin * 0.06;
     vec3 n = vec3(sin(p.x * 27.3 + p.z * 15.9 + uTime * 2.1 + h), sin(p.y * 24.9 + p.x * 14.1 - uTime * 1.7 + h), sin(p.z * 23.7 + p.y * 18.3 + uTime * 2.6 + h));
-    p += n * (0.006 + 0.012 * h) * uSpinEnergy;
+    p += n * (0.004 + 0.008 * h) * uSpinEnergy;
     // slice: band near the cut lights up, points just below it scatter with the motion
     float dz = (uClipZ - p.z) / (0.035 * uSizeZ);
     float band = exp(-dz * dz) * (1.0 - clipped) * step(uClipZ, 9.0);
@@ -99,99 +108,281 @@ const ptVert = /* glsl */`
     vec2 dp = (gl_Position.xy / gl_Position.w - uPointer) * vec2(uAspect, 1.0);
     float rip = smoothstep(0.24, 0.0, length(dp)) * uPointerStrength;
     gl_Position.xy += normalize(dp + 1e-5) * rip * 0.03 * gl_Position.w * (0.4 + h);
-    // depth: far side fades and shrinks
+    // depth: the far half darkens and shrinks
     float depth = -mv.z - uFocusDepth;
-    float far = clamp(depth / 0.9, 0.0, 1.0), near = clamp(-depth / 0.9, 0.0, 1.0);
-    float fog = 1.0 - 0.55 * far + 0.12 * near;
+    float far = clamp(depth / 0.55, 0.0, 1.0), near = clamp(-depth / 0.55, 0.0, 1.0);
+    float fog = 1.0 - 0.72 * far + 0.08 * near;
+    // relief: Lambert key + soft fill + rim, on the normal from the volume gradient (aVal = how sure that normal is)
+    vec3 nv = normalize(normalMatrix * aNormal + 1e-5), vd = normalize(-mv.xyz);
+    float facing = dot(nv, vd);
+    float shade = 0.2 + 0.95 * max(dot(nv, uKey), 0.0) + 0.18 * max(dot(nv, uFill), 0.0) + 0.25 * pow(1.0 - abs(facing), 2.5);
+    shade *= mix(0.5, 1.0, smoothstep(-0.4, 0.2, facing));   // the inner side of a fold, seen through a gap, stays dim
+    float lit = mix(1.0, mix(0.72, shade, aVal), uLit);
 
     float flicker = 0.75 + 0.25 * sin(uTime * (6.0 + 8.0 * h) + h * 6.283);
-    float excite = 1.0 + uSpinEnergy * (0.245 + 0.455 * flicker) + kick * 1.6 + band * 0.45 + rip * 0.6;
-    vAlpha = (0.45 + 0.55 * aVal) * excite * fog * (1.0 - clipped) * (1.0 - 0.92 * uAssemble);
-    vDeep = aDeep;
-    gl_PointSize = uSize * uPixelRatio * (0.8 + 0.5 * aVal) * (1.0 + 0.245 * uSpinEnergy + 0.6 * kick + 0.3 * rip) * (1.0 - 0.3 * far) / -mv.z * (1.0 - clipped);
+    float excite = 1.0 + uSpinEnergy * (0.12 + 0.25 * flicker) + kick * 0.9 + band * 0.35 + rip * 0.4;
+    vColor = mix(uColorDeep, uColor, aTissue) * lit * fog * excite;
+    vAlpha = (0.45 + 0.55 * aVal) * uOpacity * (1.0 - clipped) * (1.0 - 0.92 * uAssemble);
+    gl_PointSize = max(1.0, uSize * uPixelRatio * (0.8 + 0.4 * aVal) * (1.0 + 0.15 * uSpinEnergy + 0.5 * kick + 0.25 * rip) * (1.0 - 0.25 * far) / -mv.z) * (1.0 - clipped);
   }`;
 const ptFrag = /* glsl */`
   precision mediump float;
-  uniform vec3 uColor, uColorDeep; uniform float uOpacity;
-  varying float vAlpha, vDeep;
+  varying vec3 vColor;
+  varying float vAlpha;
   void main() {
     vec2 q = gl_PointCoord - 0.5;
     float r = dot(q, q) * 4.0;
     if (r > 1.0) discard;
-    float a = (1.0 - smoothstep(0.15, 1.0, r)) * vAlpha * uOpacity;
-    gl_FragColor = vec4(mix(uColor, uColorDeep, vDeep) * a, a);
+    gl_FragColor = vec4(vColor, (1.0 - smoothstep(0.15, 1.0, r)) * vAlpha);
+  }`;
+// Glass shell: the isosurface of the smoothed brain mask, only its near side, lit by fresnel + a specular glint.
+// Cut by the slice like the dots; the cut edge glows.
+const shellVert = /* glsl */`
+  varying vec3 vN, vV;
+  varying float vZ;
+  void main() {
+    vZ = position.z;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vN = normalMatrix * normal; vV = -mv.xyz;
+    gl_Position = projectionMatrix * mv;
+  }`;
+const shellFrag = /* glsl */`
+  precision mediump float;
+  uniform vec3 uColor, uKey;
+  uniform float uOpacity, uClipZ, uSizeZ;
+  varying vec3 vN, vV;
+  varying float vZ;
+  void main() {
+    if (vZ > uClipZ) discard;
+    vec3 n = normalize(vN), v = normalize(vV);
+    float nv = dot(n, v);
+    if (nv < 0.0) discard;                                   // far side: the dots are in front of it anyway
+    float fr = pow(1.0 - nv, 3.0);
+    float spec = pow(max(dot(n, normalize(uKey + v)), 0.0), 48.0);
+    float cz = (uClipZ - vZ) / (0.01 * uSizeZ);
+    float cut = exp(-cz * cz) * step(uClipZ, 9.0);
+    float a = (0.12 * fr + 0.12 * spec + 0.5 * cut) * uOpacity;
+    gl_FragColor = vec4(uColor, a);
   }`;
 const capVert = /* glsl */`
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+// Slice cap: the axial MRI frame. R = intensity, G = filled brain mask (so the ventricles read black, not see-through).
 const capFrag = /* glsl */`
   precision mediump float;
   uniform sampler2D uSlice; uniform vec3 uTint, uDark; uniform float uOpacity;
   varying vec2 vUv;
   void main() {
-    float d = texture2D(uSlice, vUv).r;
-    float a = smoothstep(0.08, 0.26, d) * uOpacity;
-    if (a < 0.02) discard;
-    gl_FragColor = vec4(mix(uDark, uTint, 0.22 + 0.78 * smoothstep(0.10, 0.82, d)), a);
+    vec2 s = texture2D(uSlice, vUv).rg;
+    float a = smoothstep(0.3, 0.7, s.g) * uOpacity;
+    if (a < 0.01) discard;
+    float g = smoothstep(0.2, 0.94, s.r);
+    float rim = 1.0 - smoothstep(0.0, 0.3, abs(s.g - 0.5));   // thin bright outline along the brain edge
+    gl_FragColor = vec4(mix(uDark, uTint, g * g * (3.0 - 2.0 * g)) + uTint * rim * 0.35, a);
+  }`;
+
+// Tone map of the summed dots: hue kept, brightness 1 - exp(-k * sum), the hottest spots lean to white. Premultiplied out.
+const toneVert = /* glsl */`
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const toneFrag = /* glsl */`
+  precision mediump float;
+  uniform sampler2D uDots; uniform float uExposure;
+  varying vec2 vUv;
+  void main() {
+    vec3 c = texture2D(uDots, vUv).rgb;
+    float l = max(max(c.r, c.g), c.b);
+    if (l < 1e-4) discard;
+    float t = 1.0 - exp(-uExposure * l);
+    gl_FragColor = vec4(mix(c / l * t, vec3(t), 0.35 * t * t * t), t);
   }`;
 
 /* ------------------------------------------------------------------ data */
-async function loadVolume(dataUrl) {
-  const meta = await (await fetch(dataUrl + 'brain_meta.json')).json();
-  const [X, Y, Z] = meta.dims, [cols] = meta.tiles;
-  const img = new Image();
-  img.src = dataUrl + 'brain_atlas.webp';
-  try { await img.decode(); } catch { img.src = dataUrl + 'brain_atlas.png'; await img.decode(); }
-  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(img, 0, 0);
-  const px = ctx.getImageData(0, 0, c.width, c.height).data;
-  const data = new Uint8Array(X * Y * Z);
-  for (let z = 0; z < Z; z++) {
-    const tr = Math.floor(z / cols), tc = z % cols;
-    for (let row = 0; row < Y; row++) {
-      const src = ((tr * Y + row) * c.width + tc * X) * 4, dst = z * X * Y + (Y - 1 - row) * X;
-      for (let x = 0; x < X; x++) { const v = px[src + x * 4]; data[dst + x] = v < 7 ? 0 : v; }
+const cache = new Map();   // dataUrl -> volume, and dataUrl|budget -> points: a second mount (the phone bubble) reuses them
+function loadVolume(dataUrl) {
+  if (!cache.has(dataUrl)) cache.set(dataUrl, (async () => {
+    const meta = await (await fetch(dataUrl + 'brain_meta.json')).json();
+    const [X, Y, Z] = meta.dims, [cols] = meta.tiles;
+    const img = new Image();
+    img.src = dataUrl + 'brain_atlas.webp';
+    try { await img.decode(); } catch { img.src = dataUrl + 'brain_atlas.png'; await img.decode(); }
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, c.width, c.height).data;
+    const data = new Uint8Array(X * Y * Z);
+    for (let z = 0; z < Z; z++) {
+      const tr = Math.floor(z / cols), tc = z % cols;
+      for (let row = 0; row < Y; row++) {
+        const src = ((tr * Y + row) * c.width + tc * X) * 4, dst = z * X * Y + (Y - 1 - row) * X;
+        for (let x = 0; x < X; x++) { const v = px[src + x * 4]; data[dst + x] = v < 7 ? 0 : v; }
+      }
     }
-  }
-  return { data, dims: [X, Y, Z], landmarks: meta.landmarks };
+    return { data, dims: [X, Y, Z], mm: meta.voxelMm || 1.4, landmarks: meta.landmarks };
+  })());
+  return cache.get(dataUrl);
 }
 
-/* volume -> hologram points; probability follows the intensity gradient, aDeep = distance from the outer surface */
-function buildPoints(d, [X, Y, Z], size, budget) {
-  const at = (x, y, z) => d[z * X * Y + y * X + x] / 255;
+// 3-tap [1 2 1]/4 blur along one axis (stride st, length len); the two end samples are copied
+function blur3(src, dst, st, len) {
+  const span = st * len;
+  for (let a = 0; a < src.length; a += span) {
+    for (let b = 0; b < st; b++) { dst[a + b] = src[a + b]; dst[a + span - st + b] = src[a + span - st + b]; }
+    for (let i = a + st, e = a + span - st; i < e; i++) dst[i] = 0.5 * src[i] + 0.25 * (src[i - st] + src[i + st]);
+  }
+}
+const smooth01 = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/* volume -> dots. Probability follows the intensity gradient where the dark side is fluid (the cortex surface, the walls
+   of the sulci, the ventricles), strongest in the outer ~14 mm, so the folds of the cortex carry the picture.
+   Per dot: aVal = edge strength, aNormal = outward normal (towards darker), aTissue = 1 cortex .. 0 deep.
+   Gradients come from a 3-tap blurred copy. */
+function buildPoints(d, [X, Y, Z], size, budget, mm, env) {
+  const XY = X * Y, N = XY * Z, gs = 1.55 / mm;   // gradient per ~1.5 mm, so the thresholds hold for any voxel size
+  let A = new Float32Array(N), B = new Float32Array(N);
+  for (let i = 0; i < N; i++) A[i] = d[i] / 255;
+  blur3(A, B, 1, X); blur3(B, A, X, Y); blur3(A, B, XY, Z);
+  const W = A; W.fill(0);                         // reuse the buffer for the weights
+  let wsum = 0;
+  for (let z = 1; z < Z - 1; z++) for (let y = 1; y < Y - 1; y++) {
+    let i = z * XY + y * X;
+    for (let x = 1; x < X - 1; x++) {
+      i++;
+      const v = B[i]; if (v < 0.02) continue;
+      const gx = B[i + 1] - B[i - 1], gy = B[i + X] - B[i - X], gz = B[i + XY] - B[i - XY];
+      const gl = Math.sqrt(gx * gx + gy * gy + gz * gz), g = gl * 0.5 * gs;
+      if (g < 0.05) continue;
+      const e = Math.min((g - 0.05) / 0.28, 1);
+      // 2 voxels towards the darker side: fluid there (CSF) marks a real fold, not white-matter noise
+      const dx = Math.round(x - 2 * gx / gl), dy = Math.round(y - 2 * gy / gl), dz = Math.round(z - 2 * gz / gl);
+      const dark = dx < 0 || dy < 0 || dz < 0 || dx >= X || dy >= Y || dz >= Z ? 0 : B[dz * XY + dy * X + dx];
+      const w = e * e * (1 - smooth01(0.25, 0.5, dark)) * Math.min(1, Math.max(0.25, 1.4 - env.depthAt(x, y, z) / 14));
+      if (w > 0) { W[i] = w; wsum += w; }
+    }
+  }
   let seed = 1337; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-  const W = new Float32Array(X * Y * Z); let wsum = 0;
+  const k = budget / wsum, cap = Math.ceil(budget * 1.05);
+  const pos = new Float32Array(cap * 3), val = new Float32Array(cap), tis = new Float32Array(cap), nrm = new Int8Array(cap * 3);
+  let n = 0;
   for (let z = 1; z < Z - 1; z++) for (let y = 1; y < Y - 1; y++) for (let x = 1; x < X - 1; x++) {
-    const v = at(x, y, z);
-    const gx = at(x + 1, y, z) - at(x - 1, y, z), gy = at(x, y + 1, z) - at(x, y - 1, z), gz = at(x, y, z + 1) - at(x, y, z - 1);
-    const g = Math.sqrt(gx * gx + gy * gy + gz * gz) * 0.5;
-    if (v < 0.12 && g < 0.06) continue;
-    const edge = Math.min(Math.max((g - 0.05) / 0.28, 0), 1);
-    const w = edge * edge * (v > 0.2 ? 1 : 0.5) + (v > 0.3 ? 0.012 : 0);
-    if (w > 0) { W[z * X * Y + y * X + x] = w; wsum += w; }
-  }
-  const k = budget / wsum, R = 7;
-  const deepness = (x, y, z) => {
-    let best = R;
-    for (let i = 1; i <= R && i < best; i++) {
-      if (x - i < 0 || x + i >= X || y - i < 0 || y + i >= Y || z - i < 0 || z + i >= Z ||
-          at(x - i, y, z) < 0.12 || at(x + i, y, z) < 0.12 || at(x, y - i, z) < 0.12 || at(x, y + i, z) < 0.12 ||
-          at(x, y, z - i) < 0.12 || at(x, y, z + i) < 0.12) best = i;
-    }
-    return Math.min(1, Math.max(0, (best - 2) / (R - 2)));
-  };
-  const P = [], I = [], D = [];
-  for (let z = 1; z < Z - 1; z++) for (let y = 1; y < Y - 1; y++) for (let x = 1; x < X - 1; x++) {
-    const w = W[z * X * Y + y * X + x]; if (!w) continue;
-    let dp = -1;
-    for (let n = w * k; n > 0; n -= 1) if (rnd() < n) {
-      if (dp < 0) dp = deepness(x, y, z);
-      P.push(((x + rnd()) / X - 0.5) * size.x, ((y + rnd()) / Y - 0.5) * size.y, ((z + rnd()) / Z - 0.5) * size.z);
-      I.push(Math.min(1, w * 1.4)); D.push(dp);
+    const i = z * XY + y * X + x, w = W[i]; if (!w) continue;
+    let m = w * k; if (m <= 0) continue;
+    const gx = B[i + 1] - B[i - 1], gy = B[i + X] - B[i - X], gz = B[i + XY] - B[i - XY];
+    const gl = Math.sqrt(gx * gx + gy * gy + gz * gz) || 1;
+    const e = Math.min(Math.max((gl * 0.5 * gs - 0.05) / 0.28, 0), 1);
+    // tissue by depth below the outer surface: the cortex ribbon light, the floors of the sulci and the deep
+    // structures darker (MRI intensity alone can't tell grey from white matter here: the scan is brighter at the bottom)
+    const t = 1 - smooth01(3, 15, env.depthAt(x, y, z));
+    for (; m > 0 && n < cap; m -= 1) if (rnd() < m) {
+      pos[n * 3] = ((x + rnd()) / X - 0.5) * size.x; pos[n * 3 + 1] = ((y + rnd()) / Y - 0.5) * size.y; pos[n * 3 + 2] = ((z + rnd()) / Z - 0.5) * size.z;
+      nrm[n * 3] = -127 * gx / gl; nrm[n * 3 + 1] = -127 * gy / gl; nrm[n * 3 + 2] = -127 * gz / gl;
+      val[n] = e; tis[n] = t; n++;
     }
   }
-  return { pos: new Float32Array(P), val: new Float32Array(I), deep: new Float32Array(D) };
+  return { pos: pos.subarray(0, n * 3), val: val.subarray(0, n), tis: tis.subarray(0, n), nrm: nrm.subarray(0, n * 3) };
+}
+
+/* the brain's envelope on a 2 mm grid: filled occupancy (ventricles and other closed holes solid), the depth of each cell
+   below the outer surface in mm (chamfer distance), and a smoothed copy of the occupancy for the glass shell */
+function envelope(d, [X, Y, Z], mm) {
+  const f = Math.max(1, Math.round(2 / mm)), p = 2;                       // block size, padding cells
+  const nx = Math.ceil(X / f) + 2 * p, ny = Math.ceil(Y / f) + 2 * p, nz = Math.ceil(Z / f) + 2 * p, nxy = nx * ny, n = nxy * nz;
+  let F = new Float32Array(n);
+  const cx = new Int32Array(X), inv = 1 / (f * f * f);
+  for (let x = 0; x < X; x++) cx[x] = Math.floor(x / f);
+  for (let z = 0; z < Z; z++) for (let y = 0; y < Y; y++) {
+    const o = z * X * Y + y * X, c = ((Math.floor(z / f) + p) * ny + Math.floor(y / f) + p) * nx + p;
+    for (let x = 0; x < X; x++) if (d[o + x] > 30) F[c + cx[x]] += inv;
+  }
+  // fill: everything the outside can't reach through empty cells becomes solid. The padding keeps the brain off the
+  // grid's border, so the border cells are all outside and the walks below never step off the grid.
+  const out = new Uint8Array(n), stack = new Int32Array(n), step = [1, -1, nx, -nx, nxy, -nxy];
+  let sp = 0;
+  for (let i = 0; i < n; i++) {
+    const x = i % nx, y = Math.floor(i / nx) % ny, z = Math.floor(i / nxy);
+    if (x === 0 || y === 0 || z === 0 || x === nx - 1 || y === ny - 1 || z === nz - 1) { out[i] = 1; stack[sp++] = i; }
+  }
+  while (sp) {
+    const i = stack[--sp];
+    for (let k = 0; k < 6; k++) { const j = i + step[k]; if (j >= 0 && j < n && !out[j] && F[j] < 0.5) { out[j] = 1; stack[sp++] = j; } }
+  }
+  for (let i = 0; i < n; i++) if (!out[i]) F[i] = Math.max(F[i], 1);
+  // depth below the surface: 3D chamfer (1, √2, √3), forward + backward pass
+  const D = new Float32Array(n);
+  for (let i = 0; i < n; i++) D[i] = out[i] ? 0 : 1e6;
+  const no = [], nw = [];
+  for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const o = dz * nxy + dy * nx + dx; if (o < 0) { no.push(o); nw.push(Math.hypot(dx, dy, dz)); }
+  }
+  for (let i = 0; i < n; i++) if (D[i]) { let m = D[i]; for (let k = 0; k < 13; k++) { const v = D[i + no[k]] + nw[k]; if (v < m) m = v; } D[i] = m; }
+  for (let i = n - 1; i >= 0; i--) if (D[i]) { let m = D[i]; for (let k = 0; k < 13; k++) { const v = D[i - no[k]] + nw[k]; if (v < m) m = v; } D[i] = m; }
+  for (let i = 0; i < n; i++) D[i] *= f * mm;
+  let G = new Float32Array(n);
+  for (let pass = 0; pass < 4; pass++) for (const [st, len] of [[1, nx], [nx, ny], [nxy, nz]]) { blur3(F, G, st, len); [F, G] = [G, F]; }
+  return { F, D, f, p, nx, ny, nz, depthAt: (x, y, z) => D[((Math.floor(z / f) + p) * ny + Math.floor(y / f) + p) * nx + Math.floor(x / f) + p] };
+}
+
+/* glass shell: marching cubes over the smoothed envelope; positions in frame units */
+function buildShell(env, [X, Y, Z], size) {
+  const { F, f, p, nx, ny, nz } = env;
+  const iso = 0.36, P = [], Nn = [];
+  const corner = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]];
+  const edge = [[0, 1], [1, 2], [3, 2], [0, 3], [4, 5], [5, 6], [7, 6], [4, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const nxy = nx * ny, co = corner.map(([a, b, c]) => c * nxy + b * nx + a);
+  const toW = (g, ext, len) => (((g - p) * f + f / 2) / len - 0.5) * ext;  // grid coordinate -> frame units
+  const gr = (i, k) => k === 0 ? F[i + 1] - F[i - 1] : k === 1 ? F[i + nx] - F[i - nx] : F[i + nxy] - F[i - nxy];
+  const ev = new Array(12), v = new Float32Array(8);
+  for (let z = 1; z < nz - 2; z++) for (let y = 1; y < ny - 2; y++) for (let x = 1; x < nx - 2; x++) {
+    const i0 = z * nxy + y * nx + x;
+    let idx = 0;
+    for (let c = 0; c < 8; c++) { v[c] = F[i0 + co[c]]; if (v[c] < iso) idx |= 1 << c; }
+    const bits = edgeTable[idx]; if (!bits) continue;
+    for (let e = 0; e < 12; e++) if (bits & (1 << e)) {
+      const [a, b] = edge[e], ca = corner[a], cb = corner[b], t = (iso - v[a]) / (v[b] - v[a] || 1e-6), ia = i0 + co[a], ib = i0 + co[b];
+      ev[e] = [x + ca[0] + t * (cb[0] - ca[0]), y + ca[1] + t * (cb[1] - ca[1]), z + ca[2] + t * (cb[2] - ca[2]),
+               -(gr(ia, 0) + t * (gr(ib, 0) - gr(ia, 0))), -(gr(ia, 1) + t * (gr(ib, 1) - gr(ia, 1))), -(gr(ia, 2) + t * (gr(ib, 2) - gr(ia, 2)))];
+    }
+    for (let i = idx * 16; triTable[i] !== -1; i++) {
+      const q = ev[triTable[i]];
+      P.push(toW(q[0], size.x, X), toW(q[1], size.y, Y), toW(q[2], size.z, Z));
+      const l = Math.hypot(q[3], q[4], q[5]) || 1; Nn.push(q[3] / l, q[4] / l, q[5] / l);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(Nn), 3));
+  return g;
+}
+
+/* the cap's frame: R = intensity, G = brain mask with closed sulci and filled holes (dilate 2, flood the outside, erode 2) */
+function capFrame(src, X, Y, out) {
+  const n = X * Y, m = new Uint8Array(n), dil = new Uint8Array(n), outside = new Uint8Array(n);
+  for (let i = 0; i < n; i++) m[i] = src[i] > 24 ? 1 : 0;
+  const R = 2;
+  for (let y = 0; y < Y; y++) for (let x = 0; x < X; x++) {
+    let on = 0;
+    for (let dy = -R; dy <= R && !on; dy++) for (let dx = -R; dx <= R; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < X && yy < Y && m[yy * X + xx]) { on = 1; break; }
+    }
+    dil[y * X + x] = on;
+  }
+  const st = [];
+  for (let x = 0; x < X; x++) { st.push(x, (Y - 1) * X + x); }
+  for (let y = 0; y < Y; y++) { st.push(y * X, y * X + X - 1); }
+  while (st.length) {
+    const i = st.pop(); if (outside[i] || dil[i]) continue; outside[i] = 1;
+    const x = i % X, y = (i / X) | 0;
+    if (x > 0) st.push(i - 1); if (x < X - 1) st.push(i + 1); if (y > 0) st.push(i - X); if (y < Y - 1) st.push(i + X);
+  }
+  for (let y = 0; y < Y; y++) for (let x = 0; x < X; x++) {   // erode the filled mask back by R
+    let inside = 1;
+    for (let dy = -R; dy <= R && inside; dy++) for (let dx = -R; dx <= R; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= X || yy >= Y || outside[yy * X + xx]) { inside = 0; break; }
+    }
+    out[(y * X + x) * 2] = src[y * X + x]; out[(y * X + x) * 2 + 1] = inside || m[y * X + x] ? 255 : 0;
+  }
 }
 
 function buildDust(n, r) {
@@ -200,7 +391,7 @@ function buildDust(n, r) {
     pos.set([(Math.random() - 0.5) * r * 2.6, (Math.random() - 0.5) * r * 2, (Math.random() - 0.5) * r * 2.6], i * 3);
     val[i] = Math.random();
   }
-  return { pos, val, deep: new Float32Array(n) };
+  return { pos, val, tis: new Float32Array(n).fill(1), nrm: new Int8Array(n * 3) };
 }
 
 /* ------------------------------------------------------------------ vasculature
@@ -219,7 +410,7 @@ function buildVasculature(size, planes, lm, pulse) {
   const g = new THREE.Group(), warp = makeWarp(lm);
   const N = (x, y, z) => { const [a, b, c] = warp(x, y, z); return new THREE.Vector3(a * size.x, b * size.y, c * size.z); };
   const mk = (color, emissive, opacity) => {
-    const m = new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.55, roughness: 0.42, transparent: true, opacity, depthWrite: false, clippingPlanes: planes });
+    const m = new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.3, roughness: 0.42, transparent: true, opacity, depthWrite: false, clippingPlanes: planes, blending: THREE.AdditiveBlending });  // additive: a vessel never darkens the dots under it
     m.onBeforeCompile = sh => {   // blood-flow pulse travelling up the tree
       sh.uniforms.uPulse = pulse;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position;');
@@ -231,7 +422,8 @@ function buildVasculature(size, planes, lm, pulse) {
   const art = mk(C.vessel, C.vesselEmis, C.artOpacity), vein = mk(C.vein, C.veinEmis, C.veinOpacity);
   const tube = (pts, r, mat, seg = 48) => g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => N(...p)), false, 'centripetal', 0.6), seg, r, 7, false), mat));
   const both = (pts, r, mat, seg) => { tube(pts, r, mat, seg); tube(pts.map(([x, y, z]) => [-x, y, z]), r, mat, seg); };
-  const R = { ica: 0.0068, mca: 0.0052, br: 0.0032, aca: 0.0044, pca: 0.0044, bas: 0.0062, vert: 0.0048, tr: 0.0062, ss: 0.0052, com: 0.0024 };
+  const R = Object.fromEntries(Object.entries({ ica: 0.0068, mca: 0.0052, br: 0.0032, aca: 0.0044, pca: 0.0044, bas: 0.0062, vert: 0.0048, tr: 0.0062, ss: 0.0052, com: 0.0024 })
+    .map(([k, r]) => [k, r * 0.7]));   // thin: the vessels are an accent, the dots carry the anatomy
   // posterior circulation
   both([[0.05, -0.08, -0.5], [0.045, -0.07, -0.42], [0.03, -0.06, -0.34], [0.012, -0.05, -0.27]], R.vert, art);
   tube([[0, -0.05, -0.27], [0, -0.04, -0.2], [0, -0.03, -0.14], [0, -0.02, -0.105]], R.bas, art, 24);
@@ -281,10 +473,23 @@ export function mountBrainHero(root, opts = {}) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.localClippingEnabled = true;
   el.stage.appendChild(renderer.domElement);
+  // the dots add up in a half-float buffer that is tone-mapped onto the canvas (without float buffers: straight additive, dimmer)
+  const hdr = renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float');
+  const dotsRT = hdr ? new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false }) : null;
+  const _buf = new THREE.Vector2();
 
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
   const rig = new THREE.Group(), tilt = new THREE.Group();
   scene.add(tilt); tilt.add(rig);
+  if (hdr) {
+    const tone = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ vertexShader: toneVert, fragmentShader: toneFrag,
+      uniforms: { uDots: { value: dotsRT.texture }, uExposure: { value: C.exposure } }, transparent: true, premultipliedAlpha: true, depthTest: false, depthWrite: false }));
+    tone.frustumCulled = false; tone.renderOrder = -1; scene.add(tone);
+  }
+  const draw = () => {
+    if (hdr) { renderer.setRenderTarget(dotsRT); camera.layers.set(1); renderer.render(scene, camera); renderer.setRenderTarget(null); camera.layers.set(0); }
+    renderer.render(scene, camera);
+  };
   scene.add(new THREE.HemisphereLight(C.hemi[0], C.hemi[1], 0.9));
   const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-1.2, 1.6, 2.2); scene.add(key);
   const fill = new THREE.DirectionalLight(C.fill, 0.5); fill.position.set(1.5, -0.4, -1); scene.add(fill);
@@ -294,7 +499,7 @@ export function mountBrainHero(root, opts = {}) {
                uAssemble: { value: 1 }, uFocusDepth: { value: 3.3 }, uPointerStrength: { value: 0 }, uAspect: { value: 1 }, uPointer: { value: new THREE.Vector2() } };
   const pulse = { value: 0 };
   const layers = [];          // point-layer uniforms that follow the slice clip
-  let dims, size, cap, capTex, capData, volData, capZ = -1, dust, raf = 0, destroyed = false;
+  let dims, size, cap, capTex, capData, volData, capZ = -1, dust, shellU, raf = 0, destroyed = false;
 
   const S = {
     yaw: 0, pitch: 0.21, targetPitch: 0.21, vel: 0, dragging: false, lastX: 0, lastY: 0, lastT: 0, auto: prefersReduced ? 0 : 0.14, idle: 0, prevYaw: 0, spinEnergy: 0,
@@ -304,6 +509,7 @@ export function mountBrainHero(root, opts = {}) {
     look: 0, lookIdle: 99, lookBlock: 0, px: 0, py: 0, lp: 0,   // look at the mouse: weight, time since the mouse moved, pause after a drag, pointer, pitch offset
   };
   let baseZ = 3.3, dotMul = 1;   // dotMul: live dot-size factor for transitions (setDot)
+  if (opts.intro === false) { S.intro = 3; fx.uAssemble.value = 0; }   // no assembly: the brain is simply there
 
   async function init() {
     const vol = await loadVolume(dataUrl);
@@ -316,28 +522,36 @@ export function mountBrainHero(root, opts = {}) {
     frame.rotation.set(-Math.PI / 2, Math.PI, 0, 'YXZ');   // superior -> +y, anterior -> +z
     rig.add(frame);
 
-    const points = (pts, color, deepColor, sz, opacity, order, clipped = true) => {
+    const points = (pts, { gm, wm, size: sz, opacity, order, lit }) => {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(pts.pos, 3));
       g.setAttribute('aVal', new THREE.BufferAttribute(pts.val, 1));
-      g.setAttribute('aDeep', new THREE.BufferAttribute(pts.deep, 1));
-      const u = { ...fx, uSize: { value: sz }, uClipZ: { value: 10 }, uPixelRatio: { value: renderer.getPixelRatio() * (renderer._bhK || 1) },
-                  uColor: { value: new THREE.Color(color) }, uColorDeep: { value: new THREE.Color(deepColor) }, uOpacity: { value: opacity * (renderer._bhG ?? 1) }, _o: opacity };
-      const m = new THREE.Points(g, new THREE.ShaderMaterial({ vertexShader: ptVert, fragmentShader: ptFrag, uniforms: u, transparent: true, depthWrite: false, depthTest: clipped, blending: THREE.AdditiveBlending }));
-      m.renderOrder = order; if (clipped) layers.push(u); return m;
+      g.setAttribute('aTissue', new THREE.BufferAttribute(pts.tis, 1));
+      g.setAttribute('aNormal', new THREE.BufferAttribute(pts.nrm, 3, true));
+      const u = { ...fx, uSize: { value: sz }, uClipZ: { value: 10 }, uPixelRatio: { value: renderer.getPixelRatio() * (renderer._bhK || 1) }, uLit: { value: lit ? 1 : 0 },
+                  uColor: { value: new THREE.Color(gm) }, uColorDeep: { value: new THREE.Color(wm) }, uOpacity: { value: opacity * (renderer._bhG ?? 1) }, _o: opacity,
+                  uKey: { value: new THREE.Vector3(...C.key).normalize() }, uFill: { value: new THREE.Vector3(...C.fillDir).normalize() } };
+      const m = new THREE.Points(g, new THREE.ShaderMaterial({ vertexShader: ptVert, fragmentShader: ptFrag, uniforms: u, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+      m.renderOrder = order; if (lit) layers.push(u); return m;
     };
-    const pts = buildPoints(vol.data, dims, size, opts.points ?? 110000);
-    frame.add(points(pts, C.dots, C.deep, 4.0, C.dotsOpacity, 3));
-    const gn = Math.floor(pts.pos.length / 9), gl = { pos: new Float32Array(gn * 3), val: new Float32Array(gn), deep: new Float32Array(gn) };
-    for (let i = 0; i < gn; i++) { gl.pos.set(pts.pos.subarray(i * 9, i * 9 + 3), i * 3); gl.val[i] = pts.val[i * 3]; }
-    frame.add(points(gl, C.glow, C.glow, 24, C.glowOpacity, 2));            // soft glow: every 3rd point as a big faint sprite
-    dust = points(buildDust(160, 1.6), C.dust, C.dust, 5.5, 0.35, 1, false);
+    const budget = opts.points ?? 400000, key = dataUrl + '|' + budget;
+    if (!cache.has(key)) { const env = envelope(vol.data, dims, vol.mm); cache.set(key, { pts: buildPoints(vol.data, dims, size, budget, vol.mm, env), shell: buildShell(env, dims, size) }); }
+    const built = cache.get(key);
+    const dots = points(built.pts, { gm: C.gm, wm: C.wm, size: C.dotSize, opacity: C.dotsOpacity * (hdr ? 1 : 0.6), order: 2, lit: true });
+    if (hdr) dots.layers.set(1);   // drawn into the float buffer, then tone-mapped onto the canvas
+    frame.add(dots);
+    dust = points(buildDust(140, 1.6), { gm: C.dust, wm: C.dust, size: 4, opacity: 0.22, order: 1, lit: false });
     scene.add(dust);
 
     frame.add(buildVasculature(size, [cutPlane, growPlane], vol.landmarks, pulse));
 
-    capData = new Uint8Array(dims[0] * dims[1]);
-    capTex = new THREE.DataTexture(capData, dims[0], dims[1], THREE.RedFormat, THREE.UnsignedByteType);
+    shellU = { uColor: { value: new THREE.Color(C.shell) }, uKey: { value: new THREE.Vector3(...C.key).normalize() }, uOpacity: { value: 0 }, uClipZ: { value: 10 }, uSizeZ: fx.uSizeZ };
+    const shell = new THREE.Mesh(built.shell, new THREE.ShaderMaterial({ vertexShader: shellVert, fragmentShader: shellFrag, uniforms: shellU,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    shell.renderOrder = 5; frame.add(shell);
+
+    capData = new Uint8Array(dims[0] * dims[1] * 2);
+    capTex = new THREE.DataTexture(capData, dims[0], dims[1], THREE.RGFormat, THREE.UnsignedByteType);
     capTex.minFilter = capTex.magFilter = THREE.LinearFilter; capTex.unpackAlignment = 1;
     cap = new THREE.Mesh(new THREE.PlaneGeometry(size.x, size.y), new THREE.ShaderMaterial({
       vertexShader: capVert, fragmentShader: capFrag, transparent: true, depthWrite: false, side: THREE.DoubleSide,
@@ -345,7 +559,7 @@ export function mountBrainHero(root, opts = {}) {
     }));
     cap.renderOrder = 4; cap.visible = false; frame.add(cap);
 
-    S.count = Math.round(dims[2] / 2);
+    S.count = Math.round(dims[2] * vol.mm / 2.8);   // one tick per 2.8 mm, whatever the voxel size
     S.slice = S.sliceTarget = S.sliceFloat = S.prevSlice = S.count;
     buildTicks(); updateNav(); resize();
     el.loader.classList.add('hide');
@@ -369,13 +583,14 @@ export function mountBrainHero(root, opts = {}) {
     S.follow = prefersReduced ? 0 : parseFloat(cs.getPropertyValue('--brain-follow')) || 0;  // tilt towards the mouse, 0 = off
     if (!(parseFloat(cs.getPropertyValue('--brain-zoom')) > 1)) S.zoom = S.zoomTarget = 1;
     tilt.position.set(parseFloat(cs.getPropertyValue('--brain-offset-x')) || 0, parseFloat(cs.getPropertyValue('--brain-offset-y')) || 0, 0);
-    // points have a fixed pixel size, so a small canvas packs them densely and the additive blend burns to white:
-    // shrink them with the canvas (reference 720px), and let --brain-glow (0..1) dim the dots and glow
+    // dots have a fixed pixel size, so a small canvas packs them densely: shrink them with the canvas (reference 720px),
+    // and let --brain-glow (0..1) dim the dots and the glass
     renderer._bhK = Math.min(1, Math.max(0.15, Math.min(w, h) / 720)) * (parseFloat(cs.getPropertyValue('--brain-dot')) || 1);  // floor 0.15: the page's small bubble brain; --brain-dot multiplies the dot size
     const glow = parseFloat(cs.getPropertyValue('--brain-glow')); renderer._bhG = glow >= 0 ? glow : 1;
     S.auto = prefersReduced ? 0 : 0.14 * (parseFloat(cs.getPropertyValue('--brain-spin')) || 1);  // idle spin speed, --brain-spin multiplies it
     for (const u of layers) { u.uPixelRatio.value = renderer.getPixelRatio() * renderer._bhK * dotMul; if (u._o != null) u.uOpacity.value = u._o * renderer._bhG; }
-    if (dims && !paused) renderer.render(scene, camera);  // redraw now: setSize cleared the canvas, a blank frame would flash
+    if (hdr) { renderer.getDrawingBufferSize(_buf); dotsRT.setSize(_buf.x, _buf.y); }
+    if (dims && !paused) draw();  // redraw now: setSize cleared the canvas, a blank frame would flash
   }
   const ro = new ResizeObserver(resize); ro.observe(el.stage);
 
@@ -482,7 +697,7 @@ export function mountBrainHero(root, opts = {}) {
     cap.visible = true; cap.position.z = (zf - 0.5) * size.z - 0.0015;
     cap.updateWorldMatrix(true, false);
     cutPlane.setFromNormalAndCoplanarPoint(up.set(0, 0, 1).transformDirection(cap.matrixWorld).negate(), pt.setFromMatrixPosition(cap.matrixWorld));
-    if (z !== capZ) { capData.set(volData.subarray(z * X * Y, (z + 1) * X * Y)); capTex.needsUpdate = true; capZ = z; }
+    if (z !== capZ) { capFrame(volData.subarray(z * X * Y, (z + 1) * X * Y), X, Y, capData); capTex.needsUpdate = true; capZ = z; }
   }
 
   /* loop */
@@ -526,7 +741,8 @@ export function mountBrainHero(root, opts = {}) {
     rig.rotation.y = S.yaw; tilt.rotation.x = S.pitch + S.lp;
     if (Math.abs(S.zoomTarget - S.zoom) > 1e-4) { S.zoom += (S.zoomTarget - S.zoom) * Math.min(1, dt * 12); camera.position.z = baseZ / S.zoom; }
 
-    const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto * (1 - S.look)) - lookW;  // turning to the mouse is calm: no spin smear S.prevYaw = S.yaw;
+    const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto * (1 - S.look)) - lookW;  // turning to the mouse is calm: no spin smear
+    S.prevYaw = S.yaw;
     S.spinEnergy = ease(S.spinEnergy, Math.min(1, Math.abs(extra) / 2.2), dt, 9, 1.1);
     fx.uSpinEnergy.value = THREE.MathUtils.smoothstep(S.spinEnergy, 0, 1);
     fx.uSpin.value = ease(fx.uSpin.value, THREE.MathUtils.clamp(extra / 3, -1, 1), dt, 8, 2.5);
@@ -552,10 +768,11 @@ export function mountBrainHero(root, opts = {}) {
     fx.uSliceEnergy.value = THREE.MathUtils.smoothstep(S.sliceEnergy, 0, 1); fx.uSliceVel.value = sv;
     const f = (S.slice - 1) / (S.count - 1), clipZ = f >= 0.999 ? 10 : (-0.47 + f * 0.97) * size.z;
     for (const u of layers) u.uClipZ.value = clipZ;
+    shellU.uClipZ.value = clipZ; shellU.uOpacity.value = C.shellOpacity * (renderer._bhG ?? 1) * (1 - fx.uAssemble.value);
     updateCap(f); updateNav();
 
     dust.rotation.y += dt * 0.02; dust.position.copy(tilt.position);
-    renderer.render(scene, camera);
+    draw();
     raf = requestAnimationFrame(tick);
   }
 
@@ -579,7 +796,7 @@ export function mountBrainHero(root, opts = {}) {
     destroy() {
       destroyed = true; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('scroll', onScroll);
       removeEventListener('pointermove', onFollow); document.removeEventListener('mouseout', onFollowOut);
-      renderer.dispose(); root.innerHTML = ''; root.classList.remove('bh');
+      dotsRT?.dispose(); renderer.dispose(); root.innerHTML = ''; root.classList.remove('bh');
     },
   };
 }
