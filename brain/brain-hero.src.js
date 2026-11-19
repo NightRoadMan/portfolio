@@ -27,7 +27,7 @@ const C = {   // mint theme, base #3DF5B8
   gm: '#a6f7d6', wm: '#1c9f78', dust: '#a8f7dc',   // grey matter (cortex) light, white matter deeper
   vessel: 0xdafff2, vesselEmis: 0x3df5b8, vein: 0x8fe0d6, veinEmis: 0x1fb39a, shell: '#bff8e4',
   cap: '#c4f2e0', capDark: [0.004, 0.02, 0.016], hemi: [0xe6fff6, 0x062a1e], fill: 0x3df5b8, clear: 0x050807,
-  dotsOpacity: 0.3, dotSize: 3.2, exposure: 2.6, artOpacity: 0.16, veinOpacity: 0.12, capOpacity: 0.92, shellOpacity: 1,
+  dotsOpacity: 0.3, dotSize: 3.2, exposure: 2.6, artOpacity: 0.16, veinOpacity: 0.12, capOpacity: 0.75, shellOpacity: 1,
   key: [-0.45, 0.62, 0.64], fillDir: [0.7, -0.35, 0.3],   // view-space light directions for the dots and the glass
 };
 
