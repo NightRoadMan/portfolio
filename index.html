@@ -1017,11 +1017,13 @@ body::after {
 </script>
 <script type="module">
   // BrainTM: scrolling the projects moves the axial slice from the top of the brain down.
-  import { mountBrainHero } from "./brain/brain-hero.js?v=18";
+  import { mountBrainHero } from "./brain/brain-hero.js?v=19";
   const root = document.getElementById("brain");
   const counter = document.getElementById("slice-counter");
   const tlN = document.getElementById("tl-n");
-  const hero = mountBrainHero(root, { dataUrl: "brain/data/" });
+  // phones draw the brain smaller, so fewer dots give the same density (and a quicker start); both copies share them
+  const dots = matchMedia("(min-width: 768px)").matches ? 400000 : 180000;
+  const hero = mountBrainHero(root, { dataUrl: "brain/data/", points: dots });
   let count = 0, last = 0;
   let miniHero = null, popFull = false, popF = 0;  // in the popup the slice follows its own timeline (popF 0 = whole brain), not the scroll
   const apply = () => { if (!count) return; const n = count - last * (count - 1); hero.setSlice(n); if (miniHero) miniHero.setSlice(popFull ? count - popF * (count - 1) : n); };
@@ -1090,7 +1092,7 @@ body::after {
   let colVisible = true, colAbove = false, isOpen = false, closeTimer = 0, popAnim = null;
   const ensureMini = () => {
     if (miniHero) return;
-    miniHero = mountBrainHero(mini, { dataUrl: "brain/data/" });
+    miniHero = mountBrainHero(mini, { dataUrl: "brain/data/", points: dots });
     miniHero.setPaused(true);  // loads now, starts drawing (and assembling) when it first appears
     apply();
   };
