@@ -15,8 +15,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Unbounded:wght@300;700&display=swap">
 <style>
 /* Layout (Scandinavian: one quiet grid, lots of air, type does the work):
-   desktop — content on the left, the BrainTM brain fixed on the right; its width goes
-   1/2 of the screen on the intro → 2/5 → 1/3 once the projects start.
+   desktop — a centred hero (star clip, heading, bio, the brain under them); on scroll the brain docks in the
+             middle of the screen and glides into a lane on the right, beside the projects on the left.
    narrow  — the brain sits big at the bottom of the intro island; on scroll it shrinks and sticks to the top
              as a translucent, blurred card, and everything else scrolls under it.
    Colour: black, white, greys only. Type: Medeo Sans + Medeo Mono (SIL OFL, self-hosted). */
@@ -176,8 +176,9 @@ body::after {
 .hello-badge { display: inline-block; width: 2.3em; height: 2.3em; margin: -0.3em 0.15em; vertical-align: middle; }  /* small enough not to touch «дизайнер» below */
 .hello-badge video {
   display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none;
-  /* a looping clip of me cut to the star: the clip is square and opaque (light H.264), the star is a mask */
-  -webkit-mask: url("media/star-mask.png") center / 100% 100% no-repeat; mask: url("media/star-mask.png") center / 100% 100% no-repeat;
+  /* a looping clip of me cut to the star: the clip is square and opaque (light H.264, 640px from the original),
+     the star is a vector mask, so its edge stays sharp at any size */
+  -webkit-mask: url("media/star-mask.svg") center / 100% 100% no-repeat; mask: url("media/star-mask.svg") center / 100% 100% no-repeat;
 }
 .intro p { margin: 0; max-width: 52ch; color: var(--fg-2); }
 .intro .bio { font-size: var(--t-h3); line-height: 1.55; max-width: 44ch; }
@@ -389,8 +390,57 @@ body::after {
   .brain-note.is-on .shaft, .brain-note.is-on .head, .brain-note.is-on .brain-note-text { transition: none; }
 }
 
+/* ---------- Desktop hero (after annapaliivets.ru, Артем 2026-11-19) ----------
+   Everything centred, one column: the star clip big on top, the two lines, the bio, and the brain under them
+   (as on phones). .brain-slot holds the brain's place; the brain column is sticky and laid over the slot, so it
+   rises with the page natively (no scroll jitter), docks in the middle of the screen, and on the way JS glides it
+   (--bx, --bs) from the slot into its lane beside the projects. The timeline scale fades in once it has docked. */
+@media (min-width: 768px) {
+  :root {
+    --star: clamp(152px, 22vh, 248px);     /* star clip; the source is 640px, so it stays sharp up to 320px at 2× */
+    --slot-h: 360px;                       /* the slot's real height, measured by JS (the slot fills what the screen has left) */
+  }
+  .content { padding-top: calc(var(--header-h) + var(--s-6)); }
+  .intro {
+    max-width: none; margin-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+    min-height: calc(100vh - var(--header-h) - var(--s-6));
+    display: flex; flex-direction: column; align-items: center; gap: 0; padding-bottom: 0;
+    text-align: center;
+    pointer-events: none;  /* the empty parts of the hero let the mouse through to the brain */
+  }
+  .intro > h1, .intro > .bio { pointer-events: auto; }
+  .intro > h1 { margin-top: auto; }  /* spare height goes half above the star, half between the bio and the brain */
+  .intro h1 { align-items: center; font-size: clamp(1.75rem, 0.9rem + 1.6vw, 3rem); line-height: 1.25; }
+  .h1-l1 { display: grid; grid-template-columns: auto auto; justify-content: center; column-gap: 0.3em; }
+  .hello-badge { grid-column: 1 / -1; grid-row: 1; justify-self: center; width: var(--star); height: var(--star); margin: 0 0 var(--s-6); }
+  .intro .bio { max-width: 34em; margin: var(--s-6) 0 var(--s-6); text-wrap: pretty; }
+  /* the brain under the bio: takes the rest of the first screen, at least 300px-ish, so on a laptop its bottom may
+     peek past the fold (it never draws bigger than its canvas allows, see heroFit) */
+  .brain-slot { flex: 1 0 auto; align-self: stretch; min-height: clamp(280px, 34vh, 400px); max-height: 480px; margin-top: auto; }
+  /* the column's centre starts on the slot's centre: it takes no room in the flow (the two margins add up to -100vh).
+     It runs edge to edge and clips, so the brain can slide from the middle of the page to the right without
+     being cut by its own box and without making the page scroll sideways; the canvas is still the right half (#brain). */
+  .brain-col {
+    position: sticky; top: 0; right: auto; bottom: auto; width: auto; height: 100vh; overflow: hidden; overflow: clip;
+    margin: calc(-50vh - var(--slot-h) / 2) 0 calc(var(--slot-h) / 2 - 50vh) calc(-1 * max(var(--gutter), env(safe-area-inset-left, 0px)));
+  }
+  #brain { left: auto; width: var(--bw); overflow: visible; }
+  /* the timeline scale and slice counter belong to the docked brain: hidden on the hero, fade in as it docks */
+  #brain .bh-scale, .slice-counter { transition: opacity 360ms var(--ease), visibility 0s; }
+  .brain-col:not(.is-docked) .bh-scale, .brain-col:not(.is-docked) .slice-counter { opacity: 0; visibility: hidden; transition: opacity 160ms var(--ease), visibility 0s 160ms; }
+  /* the MRI note: left of the hero brain, the arrow goes down-right into it; follows the brain's slide and scale */
+  .brain-note {
+    --r: calc(0.305 * min(100vh, var(--bw)) * var(--bs));
+    left: calc(100% - var(--bw) * 0.586 + var(--bx, 0px) - var(--r) * 0.92 - 104px);  /* brain centre: 41.4% into #brain */
+    top: calc(50vh - var(--r) * 0.32 - 75px);
+  }
+  .brain-note-arrow { transform: none; }
+  .brain-note-text { right: calc(100% + 2px); top: -24px; transform-origin: right bottom; }
+}
+
 @media (max-width: 767.98px) {
   /* menu sits at the bottom on phones; the brain band takes the top */
+  .brain-slot { display: none; }  /* the brain card after the intro is the phone version of the slot */
   :root { --header-h: 0px; --bw: 100vw; --bs: 1; --island-gap: #111113; --island-gap-h: 8px; --island-r: 24px; }
   /* island layout: grey page; the intro, projects and about each sit on it as a rounded dark island.
      the brain band stays dark and melts into the page */
@@ -562,8 +612,9 @@ body::after {
 
 <main class="content" id="top">
   <section class="intro" aria-labelledby="intro-title">
-    <h1 id="intro-title"><span class="h1-l1"><span class="nw">Привет! Меня</span> <span class="hello-badge" aria-hidden="true"><video src="media/star.mp4" poster="media/star-poster.jpg" width="384" height="384" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span> <span class="nw">зовут</span></span> <span class="nw">Артём и я дизайнер</span></h1>
+    <h1 id="intro-title"><span class="h1-l1"><span class="nw">Привет! Меня</span> <span class="hello-badge" aria-hidden="true"><video src="media/star.mp4?v=2" poster="media/star-poster.jpg?v=2" width="640" height="640" autoplay muted loop playsinline disablepictureinpicture preload="auto"></video></span> <span class="nw">зовут</span></span> <span class="nw">Артём и я дизайнер</span></h1>
     <p class="bio">Уже 6 лет занимаюсь продуктовым дизайном, специализируюсь на MedTech, Life Sciences и Biotech. Работаю в компании по поиску врачей и телемеда <a class="co" href="https://napopravku.ru/" target="_blank" rel="noopener">НаПоправку<span class="co-icon" aria-hidden="true"><img src="logos/napopravku.svg" alt="" width="20" height="20" onerror="this.remove()"><b>Н</b></span></a>. До этого работал в LifeScience проекте <a class="co" href="https://www.syngentagroup.com/" target="_blank" rel="noopener">Syngenta<span class="co-icon" aria-hidden="true"><img src="logos/syngenta.svg" alt="" width="20" height="20" onerror="this.remove()"><b>S</b></span></a> в компании <a class="co" href="https://www.epam.com/" target="_blank" rel="noopener">EPAM<span class="co-icon" aria-hidden="true"><img src="logos/epam.svg" alt="" width="20" height="20" onerror="this.remove()"><b>E</b></span></a>. Создаю продукты и сервисы, которые удобны людям и помогают бизнесу достигать целей.</p>
+    <div class="brain-slot" aria-hidden="true"></div>  <!-- desktop: the brain's place under the bio; the brain (.brain-col) is laid over it -->
   </section>
 
   <aside class="brain-col" aria-label="Мой мозг: срезы по проектам">
@@ -738,7 +789,6 @@ body::after {
   });
 
   const root = document.documentElement;
-  const intro = document.querySelector(".intro");
   const sections = Array.from(document.querySelectorAll(".project"));
   const wide = window.matchMedia("(min-width: 768px)");
   const aboutSec = document.getElementById("about");
@@ -746,9 +796,8 @@ body::after {
   const brainEnd = () => Math.max(1, wide.matches ? aboutSec.getBoundingClientRect().top + window.scrollY - window.innerHeight : root.scrollHeight - window.innerHeight);
   const lerp = (a, b, t) => a + (b - a) * Math.min(1, Math.max(0, t));
 
-  // Brain width: 1/2 on the intro → 2/5 once most of the intro has passed mid-screen → 1/3 when the first project reaches mid-screen
-  // Brain size: 1/2 of the screen on the intro → 2/5 once most of the intro has passed → 1/3 on the projects.
-  // The canvas keeps its size (resizing WebGL on every frame made it jitter); only a CSS scale is eased.
+  // Brain size and place (desktop): in the hero slot under the bio → in the lane beside the projects.
+  // The canvas keeps its size (resizing WebGL on every frame made it jitter); only a CSS scale and shift are eased.
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
   // the star clip in the greeting: still (first frame) for people who ask for less motion
   const starClip = document.querySelector(".hello-badge video");
@@ -771,6 +820,7 @@ body::after {
       });
     });
     if (Math.max(boxes[0].bottom, boxes[1].bottom) + dy > window.innerHeight - 16) return false;
+    if (boxes[0].left < 12) return false;  // narrow screens: no room left of the hero brain, skip it
     if (dy) note.style.setProperty("--note-dy", dy.toFixed(0) + "px");
     return true;
   }
@@ -802,9 +852,10 @@ body::after {
   const work = document.querySelector(".work");
   const counterEl = document.querySelector(".slice-counter");
   let bsTarget = 1, bsNow = 1, bxTarget = 0, bxNow = 0, bsRaf = 0;
+  const brainArea = document.getElementById("brain");  // the canvas box: the right half of the screen
   function laneFit() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    const colW = brainCol.clientWidth, colL = vw - colW;
+    const ba = brainArea.getBoundingClientRect(), colW = ba.width, colL = ba.left;
     const d0 = 0.61 * Math.min(vh, colW);
     const gap = parseFloat(getComputedStyle(root).getPropertyValue("--gap")) || 32;
     const left = vw * 2 / 3;  // the brain lane starts at 2/3 of the screen, independent of the content width
@@ -816,23 +867,39 @@ body::after {
     const centre = colL + colW * 0.414;
     return { s: d / d0, x: (left + right) / 2 - centre };
   }
+  // Desktop hero: the brain sits in .brain-slot under the bio, centred on the page and as big as the slot
+  // (never bigger than its canvas draws it, so it stays sharp). The column is sticky, so the page carries it up;
+  // it docks once the slot's centre reaches the middle of the screen, and by then it has glided into the lane.
+  const slot = document.querySelector(".brain-slot");
+  function heroFit() {
+    const vh = window.innerHeight;
+    const ba = brainArea.getBoundingClientRect(), colW = ba.width, colL = ba.left;
+    const d0 = 0.61 * Math.min(vh, colW);
+    const r = slot.getBoundingClientRect();
+    const d = Math.max(80, Math.min(r.height, r.width, d0));
+    return { s: d / d0, x: r.left + r.width / 2 - (colL + colW * 0.414), dock: Math.max(1, r.top + window.scrollY + r.height / 2 - vh / 2) };
+  }
+  const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
+  // the sticky column's margins need the slot's height (CSS can't read it): keep --slot-h in step with it
+  new ResizeObserver(() => { if (wide.matches) { root.style.setProperty("--slot-h", slot.offsetHeight + "px"); onScroll(); } }).observe(slot);
+  let firstFit = true, docked = null;
   function brainWidth() {
     if (!wide.matches) {
       // phones: the brain keeps its size in the intro card; the bubble copy takes over once the card is gone
       bsTarget = 1; bxTarget = 0;
     }
     else {
-      const y = window.scrollY, vh = window.innerHeight;
-      const b = Math.max(1, intro.offsetTop + intro.offsetHeight * 0.6 - vh * 0.5);
-      const c = Math.max(b + 1, sections[0].getBoundingClientRect().top + y - vh * 0.5);
-      const fit = laneFit();
-      if (y <= b) { bsTarget = lerp(1, 0.8, y / b); bxTarget = 0; }
-      else { const t = (y - b) / (c - b); bsTarget = lerp(0.8, fit.s, t); bxTarget = lerp(0, fit.x, t); }
+      const hero = heroFit(), fit = laneFit();
+      const t = smooth((window.scrollY / hero.dock - 0.3) / 0.7);  // 0 on the hero (it first rises, centred) → 1 when the column docks
+      bsTarget = lerp(hero.s, fit.s, t); bxTarget = lerp(hero.x, fit.x, t);
+      const d = t > 0.97;
+      if (d !== docked) { docked = d; brainCol.classList.toggle("is-docked", d); }
     }
-    if (!bsRaf) bsRaf = requestAnimationFrame(easeScale);
+    if (firstFit) { firstFit = false; bsNow = bsTarget; bxNow = bxTarget; }  // first paint: already in place, no glide in
+    if (!bsRaf) easeScale();  // step now, in this frame, so the brain keeps pace with the page
   }
   function easeScale() {
-    const k = reduce.matches || !wide.matches ? 1 : 0.12;  // phones keep scale 1
+    const k = reduce.matches || !wide.matches ? 1 : 0.3;  // phones keep scale 1
     bsNow += (bsTarget - bsNow) * k; bxNow += (bxTarget - bxNow) * k;
     if (Math.abs(bsTarget - bsNow) < 0.0005 && Math.abs(bxTarget - bxNow) < 0.3) { bsNow = bsTarget; bxNow = bxTarget; }
     root.style.setProperty("--bs", bsNow.toFixed(4));
@@ -1042,7 +1109,7 @@ body::after {
   }).observe(col);
   phone.addEventListener("change", () => { if (!phone.matches && isOpen) closePop(); sync(); });
   // Desktop: the brain ends with the projects. As «обо мне» comes up from the bottom of the screen,
-  // the fixed brain column is pushed up by exactly as much, so it leaves glued to the last project.
+  // the docked brain column is pushed up by exactly as much, so it leaves glued to the last project.
   const aboutEl = document.getElementById("about");
   function liftBrain() {
     const shift = phone.matches ? 0 : Math.max(0, Math.min(innerHeight, innerHeight - aboutEl.getBoundingClientRect().top));
