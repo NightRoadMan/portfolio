@@ -616,7 +616,7 @@ body::after {
   .brain-pop #brain-mini { --brain-fit: 1.25; --brain-glow: 1; --brain-zoom: 3; --brain-drag: 1; pointer-events: auto; }  /* double click zooms in / back */
   .brain-pop #brain-mini .bh-stage { pointer-events: auto; touch-action: none; }
   .brain-col.is-away #brain .bh-stage { visibility: hidden; }  /* the brain is in the popup, not in two places */
-  #brain.is-openable .bh-stage { cursor: zoom-in; }  /* over the brain itself: a click opens it */
+  #brain.is-openable .bh-stage { cursor: pointer; }  /* over the brain itself: a click opens it */
   #brain.is-openable .bh-stage.dragging { cursor: grabbing; }
   .brain-pop-close {
     position: absolute; top: 24px; right: var(--gutter); width: 44px; height: 44px; padding: 0;
