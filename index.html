@@ -207,6 +207,8 @@ body::after {
 /* projects: one column, no year/company column (the cases are not in chronological order).
    On desktop the column is indented from the section line by --gap, the same air the brain keeps from its scale */
 .work { padding-top: var(--s-16); }
+/* desktop: the projects run right up to the brain lane (it starts at 2/3 of the screen, see laneFit), less twice the gap, so the widest slice of the brain keeps its air */
+@media (min-width: 768px) { .work { max-width: calc(100vw * 2 / 3 - var(--gutter) - 2 * var(--gap)); } }
 .project {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-8);
   padding-inline-start: var(--gap);
