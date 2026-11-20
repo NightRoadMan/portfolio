@@ -204,17 +204,18 @@ body::after {
   letter-spacing: 0.02em; text-transform: lowercase; color: var(--fg-3);
 }
 
-/* projects: a two-column Swiss grid — meta on the left, the story on the right */
+/* projects: one column, no year/company column (the cases are not in chronological order).
+   On desktop the column is indented from the section line by --gap, the same air the brain keeps from its scale */
 .work { padding-top: var(--s-16); }
+/* desktop: the projects run right up to the brain lane (it starts at 2/3 of the screen, see laneFit), less twice the gap, so the widest slice of the brain keeps its air */
+@media (min-width: 768px) { .work { max-width: calc(100vw * 2 / 3 - var(--gutter) - 2 * var(--gap)); } }
 .project {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--s-8);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-8);
+  padding-inline-start: var(--gap);
   padding-block: var(--s-16) var(--s-32);
   scroll-margin-top: calc(var(--header-h) + var(--s-8));
 }
 .project + .project { border-top: 1px solid var(--line); }
-.p-meta { display: grid; align-content: start; gap: var(--s-2); color: var(--fg-3); }
-.p-meta .year { font-family: var(--font-mono); font-size: var(--t-h3); line-height: var(--lh-tight); color: var(--fg); font-variant-numeric: tabular-nums; }
-.p-meta .mono { color: var(--fg-3); }
 .p-body { display: grid; gap: var(--s-6); min-width: 0; }
 .p-body h3 { margin: 0; font-family: var(--font-head); font-size: clamp(1.25rem, 0.95rem + 0.8vw, 1.875rem); line-height: 1.25; font-weight: 300; letter-spacing: -0.01em; text-wrap: balance; }
 .cover {
@@ -591,7 +592,6 @@ body::after {
   .about > .label { padding-top: 0; }  /* the work label keeps its 24px top padding (it sits on the island's top edge) */
   .project, .about .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
   .project { scroll-margin-top: calc(var(--safe-t) + var(--bubble-d) + 24px); }
-  .p-meta { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: var(--s-4); }
   .p-facts { grid-template-columns: minmax(0, 1fr); }
   /* about island and the new footer: just the name, big and centred */
   .about { padding: var(--s-6); }  /* 24px like the other islands, so the right-edge timeline never touches the contacts */
@@ -788,11 +788,6 @@ body::after {
   document.getElementById("work-count").textContent = total + " · 2020 — 2025";
   document.getElementById("work-list").innerHTML = projects.map((p) => `
     <article class="project" id="${p.id}" aria-labelledby="t-${p.id}">
-      <div class="p-meta">
-        <span class="year">${p.year}</span>
-        <span class="mono">${esc(p.period)}</span>
-        <span class="mono">${esc(p.company)}</span>
-      </div>
       <div class="p-body">
         <h3 id="t-${p.id}">${esc(p.title)}</h3>
         <a class="cover-link" href="${p.case ? esc(p.case) : "#" + p.id}" aria-label="Смотреть кейс: ${esc(p.title)}">
