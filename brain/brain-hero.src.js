@@ -4,7 +4,7 @@
  *
  *   import { mountBrainHero } from './dist/brain-hero.js';
  *   const hero = mountBrainHero(document.querySelector('#brain'), { dataUrl: '/data/' });
- *   hero.setSlice(20); hero.reset(); hero.setPaused(true); hero.getView(); hero.setView(v); hero.resetZoom(); hero.destroy();
+ *   hero.setSlice(20); hero.reset(); hero.setPaused(true); hero.getView(); hero.setView(v); hero.resetZoom(); hero.setGhost(n|null); hero.destroy();
  *
  * CSS vars on the container: --brain-fit, --brain-offset-x/-y, --brain-glow, --brain-dot (dot size ×), --brain-dpr (pixel-ratio cap),
  *   --brain-zoom (max pinch zoom, >1 enables pinch + double tap), --brain-follow (0..1 turn to look at the mouse), --brain-drag, --brain-spin
@@ -13,6 +13,9 @@
  *   dataUrl       folder with brain_atlas.webp|png, brain_meta.json, poster.png   (default 'data/')
  *   points        number of dots                                                  (default 400000)
  *   intro         false skips the opening animation (dots flying in, vessels growing)  (default true)
+ *   features      turn single touches off, e.g. { breathe: false }: beat (heartbeat), flow (pulses up the arteries), sharp / grey
+ *                 (slice frame), perf (DPR 1.25, 30 fps when calm, fewer dots while dragging, pause off screen), grab (zoom while
+ *                 held), breathe (idle camera drift), dock / ghost / step (the built-in scale), spin
  *   scrollDriver  element whose scroll progress drives the slice (optional);
  *                 the container emits 'brainhero:scroll' with { progress } as it moves
  *
@@ -43,6 +46,7 @@ const CSS = /* css */`
 .bh-label{font-family:var(--bh-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bh-fg-3)}
 .bh-ticks{position:relative;height:min(300px,44vh);width:64px;touch-action:none;cursor:ns-resize;outline:none}
 .bh-tick{position:absolute;left:0;height:1px;width:12px;background:var(--bh-fg-3);transition:width .35s cubic-bezier(.2,.7,.2,1),background .35s,opacity .35s}
+.bh-ticks.bh-dock .bh-tick{transition:width .12s cubic-bezier(.2,.7,.2,1),background .35s,opacity .35s}
 .bh-tick.major{width:18px}.bh-tick.near{width:26px;background:var(--bh-fg-2)}.bh-tick.above{opacity:.35}
 .bh-handle{position:absolute;left:0;width:40px;height:2px;background:var(--bh-fg);border-radius:2px;transform:translateY(-50%);box-shadow:0 0 12px rgba(255,255,255,.25);pointer-events:none}
 .bh-readout{position:absolute;left:50px;transform:translateY(-50%);font-family:var(--bh-mono);font-size:11.5px;letter-spacing:.02em;color:var(--bh-fg);padding:5px 8px;border-radius:8px;background:var(--bh-pill);border:1px solid var(--bh-line);backdrop-filter:blur(10px);white-space:nowrap;pointer-events:none}
@@ -78,7 +82,7 @@ const ptVert = /* glsl */`
   attribute float aVal, aTissue;
   attribute vec3 aNormal;
   uniform float uSize, uClipZ, uPixelRatio, uTime, uSpin, uSpinEnergy, uSliceEnergy, uSliceVel, uSizeZ;
-  uniform float uAssemble, uFocusDepth, uPointerStrength, uAspect, uLit, uOpacity;
+  uniform float uAssemble, uFocusDepth, uPointerStrength, uAspect, uLit, uOpacity, uBeat, uKeep;
   uniform vec2 uPointer;
   uniform vec3 uColor, uColorDeep, uKey, uFill;
   varying vec3 vColor;
@@ -121,9 +125,13 @@ const ptVert = /* glsl */`
 
     float flicker = 0.75 + 0.25 * sin(uTime * (6.0 + 8.0 * h) + h * 6.283);
     float excite = 1.0 + uSpinEnergy * (0.12 + 0.25 * flicker) + kick * 0.9 + band * 0.35 + rip * 0.4;
+    excite *= 1.0 + 0.22 * uBeat * uLit * (0.6 + 0.4 * aTissue);   // heartbeat, the cortex a touch more
     vColor = mix(uColorDeep, uColor, aTissue) * lit * fog * excite;
-    vAlpha = (0.45 + 0.55 * aVal) * uOpacity * (1.0 - clipped) * (1.0 - 0.92 * uAssemble);
-    gl_PointSize = max(1.0, uSize * uPixelRatio * (0.8 + 0.4 * aVal) * (1.0 + 0.15 * uSpinEnergy + 0.5 * kick + 0.25 * rip) * (1.0 - 0.25 * far) / -mv.z) * (1.0 - clipped);
+    // uKeep < 1 drops a random share of the dots (while dragging) and lifts the rest so the brightness holds
+    float keep = step(fract(h * 7.31), uKeep);
+    vAlpha = (0.45 + 0.55 * aVal) * uOpacity * (1.0 - clipped) * (1.0 - 0.92 * uAssemble) * min(1.0 / max(uKeep, 0.05), 2.0);
+    gl_PointSize = max(1.0, uSize * uPixelRatio * (0.8 + 0.4 * aVal) * (1.0 + 0.15 * uSpinEnergy + 0.5 * kick + 0.25 * rip) * (1.0 + 0.06 * uBeat * uLit) * (1.0 - 0.25 * far) / -mv.z) * (1.0 - clipped);
+    if (keep < 0.5) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
   }`;
 const ptFrag = /* glsl */`
   precision mediump float;
@@ -170,15 +178,23 @@ const capVert = /* glsl */`
 // Slice cap: the axial MRI frame. R = intensity, G = filled brain mask (so the ventricles read black, not see-through).
 const capFrag = /* glsl */`
   precision mediump float;
-  uniform sampler2D uSlice; uniform vec3 uTint, uDark; uniform float uOpacity;
+  uniform sampler2D uSlice; uniform vec3 uTint, uDark; uniform float uOpacity, uSharp, uGrey;
+  uniform vec2 uTexel;
   varying vec2 vUv;
   void main() {
     vec2 s = texture2D(uSlice, vUv).rg;
     float a = smoothstep(0.3, 0.7, s.g) * uOpacity;
     if (a < 0.01) discard;
-    float g = smoothstep(0.2, 0.94, s.r);
+    // unsharp mask on 4 neighbours, the native frame reads crisp instead of soft
+    float nb = 0.25 * (texture2D(uSlice, vUv + vec2(uTexel.x, 0.0)).r + texture2D(uSlice, vUv - vec2(uTexel.x, 0.0)).r
+                     + texture2D(uSlice, vUv + vec2(0.0, uTexel.y)).r + texture2D(uSlice, vUv - vec2(0.0, uTexel.y)).r);
+    float r = clamp(s.r + uSharp * (s.r - nb), 0.0, 1.0);
+    float g = smoothstep(mix(0.2, 0.1, step(0.01, uSharp)), 0.94, r);
     float rim = 1.0 - smoothstep(0.0, 0.3, abs(s.g - 0.5));   // thin bright outline along the brain edge
-    gl_FragColor = vec4(mix(uDark, uTint, g * g * (3.0 - 2.0 * g)) + uTint * rim * 0.35, a);
+    vec3 col = mix(uDark, uTint, g * g * (3.0 - 2.0 * g)) + uTint * rim * 0.35;
+    float gr = smoothstep(0.06, 0.92, r);
+    col = mix(col, vec3(gr * gr * (3.0 - 2.0 * gr)) * 0.95 + vec3(0.02, 0.05, 0.04) * (1.0 - gr) + uTint * rim * 0.12, uGrey);   // plain grey, like the film
+    gl_FragColor = vec4(col, a);
   }`;
 
 // Tone map of the summed dots: hue kept, brightness 1 - exp(-k * sum), the hottest spots lean to white. Premultiplied out.
@@ -406,21 +422,38 @@ function makeWarp(lm) {
   const yFw = (lm.front - cy) / (T.front - T.cow[1]), yBk = (cy - lm.back) / (T.cow[1] - T.back);
   return (x, y, z) => [cx + x * sx, cy + (y - T.cow[1]) * (y >= T.cow[1] ? yFw : yBk), cz + (z - T.cow[2]) * (z >= T.cow[2] ? zUp : zDn)];
 }
-function buildVasculature(size, planes, lm, pulse) {
+function buildVasculature(size, planes, lm, pulse, flow) {
   const g = new THREE.Group(), warp = makeWarp(lm);
   const N = (x, y, z) => { const [a, b, c] = warp(x, y, z); return new THREE.Vector3(a * size.x, b * size.y, c * size.z); };
   const mk = (color, emissive, opacity) => {
     const m = new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.3, roughness: 0.42, transparent: true, opacity, depthWrite: false, clippingPlanes: planes, blending: THREE.AdditiveBlending });  // additive: a vessel never darkens the dots under it
     m.onBeforeCompile = sh => {   // blood-flow pulse travelling up the tree
-      sh.uniforms.uPulse = pulse;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjPos; uniform float uPulse;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat wv = 0.5 + 0.5 * sin(uPulse * 2.4 - (vObjPos.z + 0.5) * 11.0 - length(vObjPos.xy) * 4.0);\ntotalEmissiveRadiance *= 0.7 + 0.7 * wv * wv;');
+      sh.uniforms.uPulse = pulse; sh.uniforms.uFlow = flow;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aPath; varying vec3 vObjPos; varying float vPath;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position; vPath = aPath;');
+      // (uFlow 1): each heartbeat sends a gaussian flash from the neck up the tree, along the path length from the root (aPath)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjPos; varying float vPath; uniform float uPulse, uFlow;')
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+float wv = 0.5 + 0.5 * sin(uPulse * 2.4 - (vObjPos.z + 0.5) * 11.0 - length(vObjPos.xy) * 4.0);
+float bc = fract(uPulse * 0.72), front = bc * 1.5 - 0.06;
+float fl = exp(-pow((vPath - front) / 0.07, 2.0)) * (1.0 - 0.55 * bc) + 0.6 * exp(-pow((vPath - front + 0.16) / 0.16, 2.0)) * (1.0 - bc);
+totalEmissiveRadiance *= mix(0.7 + 0.7 * wv * wv, 0.5 + 3.2 * fl, uFlow);`)
+        .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor *= 1.0 + uFlow * fl * 2.2;');
     };
     return m;
   };
   const art = mk(C.vessel, C.vesselEmis, C.artOpacity), vein = mk(C.vein, C.veinEmis, C.veinOpacity);
-  const tube = (pts, r, mat, seg = 48) => g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => N(...p)), false, 'centripetal', 0.6), seg, r, 7, false), mat));
+  // path length from the root: a tube starts where it leaves an earlier one (the nearest sample), the trunks start at 0
+  const samples = [];
+  const tube = (pts, r, mat, seg = 48) => {
+    const curve = new THREE.CatmullRomCurve3(pts.map(p => N(...p)), false, 'centripetal', 0.6), len = curve.getLength(), p0 = curve.getPointAt(0);
+    let s0 = 0, best = 0.03;
+    for (const q of samples) { const d = q.p.distanceTo(p0); if (d < best) { best = d; s0 = q.s; } }
+    for (let i = 0; i <= 24; i++) samples.push({ p: curve.getPointAt(i / 24), s: s0 + len * i / 24 });
+    const geo = new THREE.TubeGeometry(curve, seg, r, 7, false), uv = geo.attributes.uv, path = new Float32Array(uv.count);
+    for (let i = 0; i < uv.count; i++) path[i] = s0 + uv.getX(i) * len;
+    geo.setAttribute('aPath', new THREE.BufferAttribute(path, 1));
+    g.add(new THREE.Mesh(geo, mat));
+  };
   const both = (pts, r, mat, seg) => { tube(pts, r, mat, seg); tube(pts.map(([x, y, z]) => [-x, y, z]), r, mat, seg); };
   const R = Object.fromEntries(Object.entries({ ica: 0.0068, mca: 0.0052, br: 0.0032, aca: 0.0044, pca: 0.0044, bas: 0.0062, vert: 0.0048, tr: 0.0062, ss: 0.0052, com: 0.0024 })
     .map(([k, r]) => [k, r * 0.7]));   // thin: the vessels are an accent, the dots carry the anatomy
@@ -459,6 +492,8 @@ export function mountBrainHero(root, opts = {}) {
   const q = s => root.querySelector(s);
   const el = { stage: q('[data-stage]'), loader: q('[data-loader]'), ticks: q('[data-ticks]'), handle: q('[data-handle]'), readout: q('[data-readout]'), reset: q('[data-reset]') };
   const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // touches borrowed from brain.jonny.design, all on; opts.features turns single ones off ({ beat: false, ... })
+  const L = { beat: true, flow: true, sharp: true, grey: false, perf: true, grab: true, breathe: true, dock: true, ghost: true, step: true, spin: true, ...(opts.features || {}) };
 
   if (!document.createElement('canvas').getContext('webgl2')) {
     el.loader.remove();
@@ -468,7 +503,7 @@ export function mountBrainHero(root, opts = {}) {
 
   /* scene */
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });  // transparent: the page shows through (translucent brain card on phones)
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, L.perf ? 1.25 : 2));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.localClippingEnabled = true;
@@ -496,8 +531,10 @@ export function mountBrainHero(root, opts = {}) {
 
   const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 10), growPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 10);
   const fx = { uTime: { value: 0 }, uSpin: { value: 0 }, uSpinEnergy: { value: 0 }, uSliceEnergy: { value: 0 }, uSliceVel: { value: 0 }, uSizeZ: { value: 1 },
-               uAssemble: { value: 1 }, uFocusDepth: { value: 3.3 }, uPointerStrength: { value: 0 }, uAspect: { value: 1 }, uPointer: { value: new THREE.Vector2() } };
-  const pulse = { value: 0 };
+               uAssemble: { value: 1 }, uFocusDepth: { value: 3.3 }, uPointerStrength: { value: 0 }, uAspect: { value: 1 }, uPointer: { value: new THREE.Vector2() },
+               uBeat: { value: 0 }, uKeep: { value: 1 } };
+  const pulse = { value: 0 }, flow = { value: L.flow ? 1 : 0 };
+  let ghost = [], capU;   // two ghost frames (current + fading trail) for the slice under the mouse
   const layers = [];          // point-layer uniforms that follow the slice clip
   let dims, size, cap, capTex, capData, volData, capZ = -1, dust, shellU, raf = 0, destroyed = false;
 
@@ -506,6 +543,7 @@ export function mountBrainHero(root, opts = {}) {
     slice: 1, sliceTarget: 1, sliceFloat: 1, count: 1, navVel: 0, navDrag: false, navLastT: 0, prevSlice: 1, sliceEnergy: 0,
     intro: 0, pointerOn: 0, pointerIdle: 9,
     zoom: 1, zoomTarget: 1, follow: 0,
+    grab: 1, calm: 0, mt: 0, wNext: 3, wT: 9, wN: 1, wDir: [0, 0], hover: -1, ghostIdx: -1, stepTarget: null, stepAcc: 0, stepFast: false, pend: null, lastInput: 0,
     look: 0, lookIdle: 99, lookBlock: 0, px: 0, py: 0, lp: 0,   // look at the mouse: weight, time since the mouse moved, pause after a drag, pointer, pitch offset
   };
   let baseZ = 3.3, dotMul = 1;   // dotMul: live dot-size factor for transitions (setDot)
@@ -543,7 +581,7 @@ export function mountBrainHero(root, opts = {}) {
     dust = points(buildDust(140, 1.6), { gm: C.dust, wm: C.dust, size: 4, opacity: 0.22, order: 1, lit: false });
     scene.add(dust);
 
-    frame.add(buildVasculature(size, [cutPlane, growPlane], vol.landmarks, pulse));
+    frame.add(buildVasculature(size, [cutPlane, growPlane], vol.landmarks, pulse, flow));
 
     shellU = { uColor: { value: new THREE.Color(C.shell) }, uKey: { value: new THREE.Vector3(...C.key).normalize() }, uOpacity: { value: 0 }, uClipZ: { value: 10 }, uSizeZ: fx.uSizeZ };
     const shell = new THREE.Mesh(built.shell, new THREE.ShaderMaterial({ vertexShader: shellVert, fragmentShader: shellFrag, uniforms: shellU,
@@ -553,11 +591,20 @@ export function mountBrainHero(root, opts = {}) {
     capData = new Uint8Array(dims[0] * dims[1] * 2);
     capTex = new THREE.DataTexture(capData, dims[0], dims[1], THREE.RGFormat, THREE.UnsignedByteType);
     capTex.minFilter = capTex.magFilter = THREE.LinearFilter; capTex.unpackAlignment = 1;
-    cap = new THREE.Mesh(new THREE.PlaneGeometry(size.x, size.y), new THREE.ShaderMaterial({
+    const capMat = tex => new THREE.ShaderMaterial({
       vertexShader: capVert, fragmentShader: capFrag, transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      uniforms: { uSlice: { value: capTex }, uTint: { value: new THREE.Color(C.cap) }, uDark: { value: new THREE.Vector3(...C.capDark) }, uOpacity: { value: C.capOpacity } },
-    }));
+      uniforms: { uSlice: { value: tex }, uTint: { value: new THREE.Color(C.cap) }, uDark: { value: new THREE.Vector3(...C.capDark) }, uOpacity: { value: C.capOpacity },
+                  uSharp: { value: L.sharp ? 1.1 : 0 }, uGrey: { value: L.grey ? 1 : 0 }, uTexel: { value: new THREE.Vector2(1 / dims[0], 1 / dims[1]) } },
+    });
+    cap = new THREE.Mesh(new THREE.PlaneGeometry(size.x, size.y), capMat(capTex)); capU = cap.material.uniforms;
     cap.renderOrder = 4; cap.visible = false; frame.add(cap);
+    for (let k = 0; k < 2; k++) {   // ghost frames: no depth test so they read through the dots, additive so they never darken them
+      const data = new Uint8Array(dims[0] * dims[1] * 2), tex = new THREE.DataTexture(data, dims[0], dims[1], THREE.RGFormat, THREE.UnsignedByteType);
+      tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.unpackAlignment = 1;
+      const m = new THREE.Mesh(cap.geometry, capMat(tex)); m.material.blending = THREE.AdditiveBlending; m.material.depthTest = false;
+      m.renderOrder = 6; m.visible = false; frame.add(m);
+      ghost.push({ m, data, tex, idx: -1, a: 0, target: 0 });
+    }
 
     S.count = Math.round(dims[2] * vol.mm / 2.8);   // one tick per 2.8 mm, whatever the voxel size
     S.slice = S.sliceTarget = S.sliceFloat = S.prevSlice = S.count;
@@ -571,7 +618,7 @@ export function mountBrainHero(root, opts = {}) {
   function resize() {
     const w = el.stage.clientWidth, h = el.stage.clientHeight;
     if (!w || !h) return;
-    const dprCap = parseFloat(getComputedStyle(root).getPropertyValue('--brain-dpr')) || 2;  // a small canvas needs fewer pixels
+    const dprCap = Math.min(parseFloat(getComputedStyle(root).getPropertyValue('--brain-dpr')) || 2, L.perf ? 1.25 : 9);  // a small canvas needs fewer pixels; perf caps it at 1.25
     renderer.setPixelRatio(Math.min(devicePixelRatio, dprCap));
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix(); fx.uAspect.value = w / h;
@@ -616,12 +663,13 @@ export function mountBrainHero(root, opts = {}) {
     lastTap = { t: now, x: e.clientX, y: e.clientY };
     return pts2.size > 2;
   };
-  const onDown = e => { if (zoomDown(e)) return; K = 0.0075 * (parseFloat(getComputedStyle(root).getPropertyValue('--brain-drag')) || 1); S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
+  const onDown = e => { S.lastInput = performance.now(); if (zoomDown(e)) return; K = 0.0075 * (parseFloat(getComputedStyle(root).getPropertyValue('--brain-drag')) || 1); S.dragging = true; el.stage.classList.add('dragging'); el.stage.setPointerCapture(e.pointerId); S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = performance.now(); S.vel = 0; S.idle = 0; setPointer(e); };
   const onMove = e => {
     if (pts2.has(e.pointerId)) { const p = pts2.get(e.pointerId); p.x = e.clientX; p.y = e.clientY; if (lastTap && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) > 10) lastTap = null; }
     if (pinch) { if (pts2.size === 2) S.zoomTarget = THREE.MathUtils.clamp(pinch.z * pinchDist() / pinch.d, 1, zoomMax()); return; }
     setPointer(e);
     if (!S.dragging) return;
+    S.lastInput = performance.now();
     const dx = e.clientX - S.lastX, dy = e.clientY - S.lastY, now = performance.now(), dt = Math.max(now - S.lastT, 1) / 1000;
     S.yaw += dx * K; S.targetPitch = THREE.MathUtils.clamp(S.targetPitch + dy * K * 0.6, -1.2, 1.2); S.vel = THREE.MathUtils.clamp(S.vel * 0.55 + dx * K / dt * 0.45, -14, 14);  // smoothed fling, not the last event's raw dx/dt
     S.lastX = e.clientX; S.lastY = e.clientY; S.lastT = now;
@@ -639,7 +687,7 @@ export function mountBrainHero(root, opts = {}) {
   el.stage.addEventListener('pointerleave', onLeave); el.stage.addEventListener('keydown', onKey);
   // desktop: the brain turns its face to the mouse; when the mouse rests for LOOK_HOLD s or leaves the window, the idle spin comes back
   const LOOK_HOLD = 4, TAU = Math.PI * 2, _c = new THREE.Vector3();
-  const onFollow = e => { if (e.pointerType !== 'mouse' || !S.follow) return; S.px = e.clientX; S.py = e.clientY; S.lookIdle = 0; };
+  const onFollow = e => { if (e.pointerType !== 'mouse' || !S.follow) return; S.px = e.clientX; S.py = e.clientY; S.lookIdle = 0; S.lastInput = performance.now(); };
   const onFollowOut = e => { if (!e.relatedTarget) S.lookIdle = LOOK_HOLD; };
   addEventListener('pointermove', onFollow, { passive: true }); document.addEventListener('mouseout', onFollowOut);
 
@@ -652,19 +700,46 @@ export function mountBrainHero(root, opts = {}) {
     }
     el.ticks.setAttribute('aria-valuemax', S.count);
   }
+  let tickEls = null;
   const setSliceFloat = v => { S.sliceFloat = THREE.MathUtils.clamp(v, 1, S.count); S.sliceTarget = Math.round(S.sliceFloat); };
   const sliceFromY = y => { const r = el.ticks.getBoundingClientRect(); return 1 + THREE.MathUtils.clamp(1 - (y - r.top) / r.height, 0, 1) * (S.count - 1); };
-  const navDown = e => { S.navDrag = true; el.ticks.setPointerCapture(e.pointerId); S.navVel = 0; setSliceFloat(sliceFromY(e.clientY)); S.navLastT = performance.now(); };
+  const navDown = e => {
+    S.navDrag = true; el.ticks.setPointerCapture(e.pointerId); S.navVel = 0; S.navLastT = performance.now(); S.lastInput = S.navLastT;
+    S.stepTarget = null;
+    if (L.step) S.pend = { y: e.clientY, target: Math.round(sliceFromY(e.clientY)) };   // a click steps there; a drag (> 4 px) scrubs as before
+    else setSliceFloat(sliceFromY(e.clientY));
+  };
+  // hover over the scale. Dock: ticks swell around the mouse. Ghost: the slice under the mouse shows through the brain
+  const onHover = e => {
+    if (e.pointerType !== 'mouse') return;
+    const hi = sliceFromY(e.clientY) - 1;
+    S.hover = S.navDrag ? -1 : Math.round(hi);
+    if (L.dock) {
+      el.ticks.classList.add('bh-dock');
+      tickEls ??= Array.from(el.ticks.querySelectorAll('.bh-tick'));
+      for (const t of tickEls) { const k = +t.dataset.i, d = Math.abs(k - hi), w = THREE.MathUtils.smoothstep(1 - d / 4, 0, 1); t.style.width = `${(k % 5 === 0 ? 18 : 12) + 30 * w}px`; }
+    }
+  };
+  const onHoverOut = () => { S.hover = -1; el.ticks.classList.remove('bh-dock'); tickEls?.forEach(t => (t.style.width = '')); };
+  el.ticks.addEventListener('pointermove', onHover); el.ticks.addEventListener('pointerleave', onHoverOut);
   const navMove = e => {
+    if (S.pend) { if (Math.abs(e.clientY - S.pend.y) < 4) return; S.pend = null; }
     if (!S.navDrag) return;
+    S.lastInput = performance.now();
     const now = performance.now(), dt = Math.max(now - S.navLastT, 1) / 1000, prev = S.sliceFloat;
     setSliceFloat(sliceFromY(e.clientY));
     S.navVel = THREE.MathUtils.clamp(S.navVel * 0.5 + (S.sliceFloat - prev) / dt * 0.5, -40, 40); S.navLastT = now;
   };
-  const navUp = () => { S.navDrag = false; if (performance.now() - S.navLastT > 120) S.navVel = 0; };
-  const navWheel = e => { e.preventDefault(); S.navVel = 0; setSliceFloat(S.sliceTarget - Math.sign(e.deltaY)); };
-  const navKey = e => { if (e.key === 'ArrowUp') setSliceFloat(S.sliceTarget + 1); if (e.key === 'ArrowDown') setSliceFloat(S.sliceTarget - 1); };
-  const reset = () => { S.navVel = 0; setSliceFloat(S.count); S.targetPitch = 0.21; };
+  const navUp = () => {
+    S.navDrag = false; if (performance.now() - S.navLastT > 120) S.navVel = 0;
+    if (S.pend) { S.stepTarget = THREE.MathUtils.clamp(S.pend.target, 1, S.count); S.stepFast = false; S.stepAcc = 0.046; S.pend = null; S.navVel = 0; }
+  };
+  const navWheel = e => { e.preventDefault(); S.navVel = 0; S.stepTarget = null; S.lastInput = performance.now(); setSliceFloat(S.sliceTarget - Math.sign(e.deltaY)); };
+  const navKey = e => { S.stepTarget = null; if (e.key === 'ArrowUp') setSliceFloat(S.sliceTarget + 1); if (e.key === 'ArrowDown') setSliceFloat(S.sliceTarget - 1); };
+  const reset = () => {
+    S.navVel = 0; S.targetPitch = 0.21; S.lastInput = performance.now();
+    if (L.step) { S.stepTarget = S.count; S.stepFast = true; S.stepAcc = 0; } else setSliceFloat(S.count);   // reset runs up the slices fast (8 ms a step)
+  };
   el.ticks.addEventListener('pointerdown', navDown); el.ticks.addEventListener('pointermove', navMove);
   el.ticks.addEventListener('pointerup', navUp); el.ticks.addEventListener('pointercancel', navUp);
   el.ticks.addEventListener('wheel', navWheel, { passive: false }); el.ticks.addEventListener('keydown', navKey);
@@ -676,12 +751,12 @@ export function mountBrainHero(root, opts = {}) {
     const range = drv.offsetHeight - root.offsetHeight; if (range <= 0) return;
     const p = THREE.MathUtils.clamp(-drv.getBoundingClientRect().top / range, 0, 1);
     if (Math.abs(p - scrollP) < 1e-4) return;
-    scrollP = p; S.navVel = 0; setSliceFloat(S.count - p * (S.count - 1));
+    scrollP = p; S.navVel = 0; S.stepTarget = null; S.lastInput = performance.now(); setSliceFloat(S.count - p * (S.count - 1));
     root.dispatchEvent(new CustomEvent('brainhero:scroll', { detail: { progress: p } }));
   };
   if (opts.scrollDriver) addEventListener('scroll', onScroll, { passive: true });
 
-  let tickEls = null, lastIdx = -1;
+  let lastIdx = -1;
   function updateNav() {
     const i = Math.round(S.slice) - 1; if (i === lastIdx) return; lastIdx = i;
     tickEls ??= Array.from(el.ticks.querySelectorAll('.bh-tick'));
@@ -699,16 +774,47 @@ export function mountBrainHero(root, opts = {}) {
     cutPlane.setFromNormalAndCoplanarPoint(up.set(0, 0, 1).transformDirection(cap.matrixWorld).negate(), pt.setFromMatrixPosition(cap.matrixWorld));
     if (z !== capZ) { capFrame(volData.subarray(z * X * Y, (z + 1) * X * Y), X, Y, capData); capTex.needsUpdate = true; capZ = z; }
   }
+  // ghost: the slice under the mouse on the scale, translucent; when the mouse moves on, the old one fades out (~110 ms)
+  function updateGhost(dt) {
+    const want = L.ghost && S.hover >= 0 && S.hover < S.count - 1 && S.hover + 1 !== Math.round(S.sliceTarget) ? S.hover : -1;
+    if (want !== S.ghostIdx) {
+      const [a, b] = ghost;
+      if (a.idx >= 0) { b.idx = a.idx; b.a = a.a; [b.data, a.data] = [a.data, b.data]; [b.tex, a.tex] = [a.tex, b.tex]; a.m.material.uniforms.uSlice.value = a.tex; b.m.material.uniforms.uSlice.value = b.tex; b.m.position.z = a.m.position.z; b.target = 0; }
+      a.idx = want; a.a = want >= 0 ? Math.max(a.a * 0.5, 0) : 0; a.target = want >= 0 ? 1 : 0;
+      if (want >= 0) {
+        const [X, Y, Z] = dims, f = want / (S.count - 1), zf = 0.03 + f * 0.97, z = Math.min(Z - 1, Math.max(0, Math.round(zf * Z - 0.5)));
+        capFrame(volData.subarray(z * X * Y, (z + 1) * X * Y), X, Y, a.data); a.tex.needsUpdate = true; a.m.position.z = (zf - 0.5) * size.z;
+      }
+      S.ghostIdx = want;
+    }
+    for (const g of ghost) {
+      g.a += (g.target - g.a) * Math.min(1, dt / (g.target ? 0.055 : 0.11));
+      g.m.visible = g.idx >= 0 && g.a > 0.01;
+      const u = g.m.material.uniforms; u.uOpacity.value = 0.42 * g.a; u.uSharp.value = capU.uSharp.value; u.uGrey.value = capU.uGrey.value;
+    }
+  }
 
   /* loop */
   let last = performance.now();
   const easeOut = t => 1 - (1 - t) ** 3;
   const ease = (cur, target, dt, upK, downK) => cur + (target - cur) * Math.min(1, dt * (target > cur ? upK : downK));
   let paused = false, ticked = false;   // setPaused(true) stops rendering (an off-screen copy costs nothing)
+  // perf: pause when the canvas is off screen or the tab is hidden; 30 fps while nothing is touched; half the dots while dragging
+  let offscreen = false;
+  const stopped = () => paused || (L.perf && (offscreen || document.hidden));
+  const wake = () => { if (!stopped() && ticked && !raf && !destroyed) { last = performance.now(); raf = requestAnimationFrame(tick); } };
+  const io = new IntersectionObserver(es => { offscreen = !es[es.length - 1].isIntersecting; wake(); });
+  io.observe(root);
+  const onVis = () => wake(); document.addEventListener('visibilitychange', onVis);
+  let lastDraw = 0;
+  const beatAt = t => { const c = t * 0.72 - Math.floor(t * 0.72); return Math.exp(-(((c - 0.12) / 0.055) ** 2)) + 0.42 * Math.exp(-(((c - 0.28) / 0.075) ** 2)); };
   function tick(now) {
     if (destroyed) return;
     ticked = true;
-    if (paused) { raf = 0; return; }
+    if (stopped()) { raf = 0; return; }
+    const busy = S.dragging || S.navDrag || pinch || S.stepTarget != null || Math.abs(S.navVel) > 0.01 || Math.abs(S.sliceTarget - S.slice) > 0.002 || now - S.lastInput < 800 || S.intro < 3;
+    if (L.perf && !busy && now - lastDraw < 32) { raf = requestAnimationFrame(tick); return; }   // 30 fps when calm
+    lastDraw = now;
     const dt = Math.min((now - last) / 1000, 0.05); last = now;
 
     if (S.intro < 3) {                                            // intro: points assemble, vessels grow
@@ -729,7 +835,7 @@ export function mountBrainHero(root, opts = {}) {
     }
     if (!S.dragging) {                                            // inertia -> slow auto rotation (or turning to the mouse)
       S.idle += dt; S.vel *= Math.exp(-dt * 3.2);
-      let w = S.vel + THREE.MathUtils.smoothstep(S.idle, 0.4, 2) * S.auto * (1 - S.look);
+      let w = S.vel + THREE.MathUtils.smoothstep(S.idle, 0.4, 2) * S.auto * (L.spin ? 1 : 0) * (1 - S.look);
       if (S.look > 0.001) {                                       // face front (yaw 0) + the look angle, the short way round
         const tgt = lyT + TAU * Math.round((S.yaw - lyT) / TAU);
         lookW = THREE.MathUtils.clamp((tgt - S.yaw) * 4, -5, 5) * S.look; w += lookW;
@@ -738,10 +844,26 @@ export function mountBrainHero(root, opts = {}) {
     }
     S.pitch += (S.targetPitch - S.pitch) * Math.min(1, dt * 6);
     S.lp += (lpT * S.look - S.lp) * Math.min(1, dt * 4);
-    rig.rotation.y = S.yaw; tilt.rotation.x = S.pitch + S.lp;
-    if (Math.abs(S.zoomTarget - S.zoom) > 1e-4) { S.zoom += (S.zoomTarget - S.zoom) * Math.min(1, dt * 12); camera.position.z = baseZ / S.zoom; }
+    // breathing: when calm, slow sines (9.5-31 s) plus now and then 1-3 small twitches; never touches S.yaw, so no spin smear
+    S.calm = !L.breathe || prefersReduced || S.dragging || S.look > 0.05 ? 0 : S.calm + dt;
+    const bw = THREE.MathUtils.smoothstep(S.calm, 0.3, 2.1);
+    S.mt += dt;
+    const T2 = Math.PI * 2, t = S.mt;
+    let by = 0.065 * (0.55 * Math.sin(T2 * t / 9.5) + 0.3 * Math.sin(T2 * t / 17.3 + 1.1) + 0.15 * Math.sin(T2 * t / 31 + 2.3));
+    let bp = 0.05 * (0.5 * Math.sin(T2 * t / 12.7 + 0.4) + 0.35 * Math.sin(T2 * t / 23.1 + 2) + 0.15 * Math.sin(T2 * t / 29));
+    S.wT += dt;
+    if (bw > 0.5 && S.wT > S.wNext) { S.wT = 0; S.wNext = 3.6 + Math.random() * 5.4; S.wN = 1 + Math.floor(Math.random() * 3); const a = Math.random() * T2; S.wDir = [Math.cos(a), Math.sin(a)]; }
+    const wd = 0.42 * S.wN;
+    if (S.wT < wd) { const k = 0.014 * Math.sin(T2 * S.wN * S.wT / wd) * (1 - S.wT / wd) ** 2; by += k * S.wDir[0]; bp += k * S.wDir[1]; }
+    rig.rotation.y = S.yaw + by * bw; tilt.rotation.x = S.pitch + S.lp + bp * bw;
+    // grab zoom: while the brain is held it comes 4% closer
+    S.grab += ((L.grab && S.dragging ? 1.04 : 1) - S.grab) * (1 - Math.exp(-dt / 0.14));
+    if (Math.abs(S.zoomTarget - S.zoom) > 1e-4) S.zoom += (S.zoomTarget - S.zoom) * Math.min(1, dt * 12);
+    camera.position.z = baseZ / (S.zoom * S.grab);
+    fx.uKeep.value = L.perf && (S.dragging || pinch) ? 0.55 : 1;
+    fx.uBeat.value = L.beat && !prefersReduced ? beatAt(pulse.value) * Math.min(1, S.intro / 2) : 0;
 
-    const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto * (1 - S.look)) - lookW;  // turning to the mouse is calm: no spin smear
+    const extra = (S.yaw - S.prevYaw) / dt - (S.dragging ? 0 : S.auto * (L.spin ? 1 : 0) * (1 - S.look)) - lookW;  // turning to the mouse is calm: no spin smear
     S.prevYaw = S.yaw;
     S.spinEnergy = ease(S.spinEnergy, Math.min(1, Math.abs(extra) / 2.2), dt, 9, 1.1);
     fx.uSpinEnergy.value = THREE.MathUtils.smoothstep(S.spinEnergy, 0, 1);
@@ -761,7 +883,14 @@ export function mountBrainHero(root, opts = {}) {
       }
       S.sliceTarget = Math.round(S.sliceFloat);
     }
-    S.slice += (S.sliceTarget - S.slice) * Math.min(1, dt * 10);
+    if (S.stepTarget != null) {                                    // a click on the scale walks there a slice at a time
+      const per = S.stepFast ? 0.008 : 0.046;
+      S.stepAcc += dt;
+      while (S.stepAcc >= per && S.sliceTarget !== S.stepTarget) { S.sliceTarget += Math.sign(S.stepTarget - S.sliceTarget); S.stepAcc -= per; }
+      S.sliceFloat = S.sliceTarget;
+      if (S.sliceTarget === S.stepTarget) S.stepTarget = null;
+    }
+    S.slice += (S.sliceTarget - S.slice) * Math.min(1, dt * (S.stepTarget != null ? 28 : 10));
     if (Math.abs(S.sliceTarget - S.slice) < 0.002) S.slice = S.sliceTarget;
     const sv = (S.slice - S.prevSlice) / dt; S.prevSlice = S.slice;
     S.sliceEnergy = ease(S.sliceEnergy, Math.min(1, Math.abs(sv) / 25), dt, 10, 1.3);
@@ -769,7 +898,7 @@ export function mountBrainHero(root, opts = {}) {
     const f = (S.slice - 1) / (S.count - 1), clipZ = f >= 0.999 ? 10 : (-0.47 + f * 0.97) * size.z;
     for (const u of layers) u.uClipZ.value = clipZ;
     shellU.uClipZ.value = clipZ; shellU.uOpacity.value = C.shellOpacity * (renderer._bhG ?? 1) * (1 - fx.uAssemble.value);
-    updateCap(f); updateNav();
+    updateCap(f); updateNav(); updateGhost(dt);
 
     dust.rotation.y += dt * 0.02; dust.position.copy(tilt.position);
     draw();
@@ -789,12 +918,11 @@ export function mountBrainHero(root, opts = {}) {
     setDot(k) { dotMul = k > 0 ? k : 1; for (const u of layers) u.uPixelRatio.value = renderer.getPixelRatio() * (renderer._bhK || 1) * dotMul; },
     // the numbers resize() uses, so a page transition can match two layouts exactly
     getLook() { return { k: renderer._bhK || 1, fit: parseFloat(getComputedStyle(root).getPropertyValue('--brain-fit')) || 1 }; },
-    setPaused(v) {
-      paused = !!v;
-      if (!paused && ticked && !raf && !destroyed) { last = performance.now(); raf = requestAnimationFrame(tick); }
-    },
+    setPaused(v) { paused = !!v; wake(); },
+    // a page's own slice scale: show slice n (1..count) as a ghost through the brain while the mouse is over it; null hides it
+    setGhost(n) { S.hover = n == null || !dims ? -1 : Math.round(THREE.MathUtils.clamp(n, 1, S.count)) - 1; },
     destroy() {
-      destroyed = true; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('scroll', onScroll);
+      destroyed = true; cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); document.removeEventListener('visibilitychange', onVis); removeEventListener('scroll', onScroll);
       removeEventListener('pointermove', onFollow); document.removeEventListener('mouseout', onFollowOut);
       dotsRT?.dispose(); renderer.dispose(); root.innerHTML = ''; root.classList.remove('bh');
     },

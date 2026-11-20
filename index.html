@@ -644,6 +644,7 @@ body::after {
   .pop-tl-ticks i { width: 12px; height: 1px; background: var(--fg-3); opacity: 0.6; transition: width 120ms var(--ease), opacity 120ms var(--ease); }
   .pop-tl-ticks i.major { width: 18px; opacity: 0.8; }
   .pop-tl-ticks i.near { width: 26px; opacity: 1; }
+  .pop-tl.is-dock .pop-tl-ticks i { transition: width 120ms cubic-bezier(.2,.7,.2,1), opacity 120ms var(--ease); }
   .pop-tl-handle { position: absolute; right: 0; top: 0; width: 40px; height: 2px; margin-top: -1px; border-radius: 2px; background: var(--fg); will-change: transform; }
   html.is-pop { overflow: hidden; }
   @media (prefers-reduced-motion: reduce) { .brain-pop-stage { transition: none; } }
@@ -1003,6 +1004,22 @@ body::after {
   const tl = document.getElementById("tl"), tlTrack = document.getElementById("tl-track");
   const tlHandle = document.getElementById("tl-handle"), tlTicks = document.getElementById("tl-ticks");
   const maxScroll = () => Math.max(1, root.scrollHeight - window.innerHeight);
+  // a press on a scale (not on its handle) glides the page there at ~46 ms per slice, so the brain's slice walks
+  // down step by step instead of jumping; a drag, the wheel or a new press takes over at once
+  let glide = 0;
+  const stopGlide = () => { cancelAnimationFrame(glide); glide = 0; };
+  window.glideScroll = (to, slices) => {
+    stopGlide();
+    const from = window.scrollY, dur = Math.min(1400, Math.max(1, slices) * 46), t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur);
+      window.scrollTo({ top: from + (to - from) * k, behavior: "instant" });
+      glide = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    glide = requestAnimationFrame(step);
+  };
+  window.stopGlide = stopGlide;
+  addEventListener("wheel", stopGlide, { passive: true });
   let tlTickEls = [];
   function buildTl(n) {
     tlTicks.innerHTML = Array.from({ length: n }, (_, i) => `<i${i % 5 === 0 ? ' class="major"' : ""}></i>`).join("");
@@ -1027,12 +1044,14 @@ body::after {
     e.preventDefault();
     const f = tlFrac(e.clientY), cur = window.scrollY / maxScroll();
     const near = Math.abs(f - cur) * tlTrack.clientHeight < 24;  // grabbing the handle keeps the offset, like a scrollbar thumb
-    tlDrag = { id: e.pointerId, off: near ? cur - f : 0 };
-    if (!near) window.scrollTo({ top: f * maxScroll(), behavior: "instant" });
+    tlDrag = { id: e.pointerId, off: near ? cur - f : 0, y: e.clientY };
+    stopGlide();
+    if (!near) glideScroll(f * maxScroll(), Math.abs(f - cur) * (tlTickEls.length - 1));
     tl.setPointerCapture(e.pointerId); tl.classList.add("is-dragging");
   });
   tl.addEventListener("pointermove", (e) => {
     if (!tlDrag || e.pointerId !== tlDrag.id) return;
+    if (glide) { if (Math.abs(e.clientY - tlDrag.y) < 4) return; stopGlide(); tlDrag.off = 0; }
     window.scrollTo({ top: Math.min(1, Math.max(0, tlFrac(e.clientY) + tlDrag.off)) * maxScroll(), behavior: "instant" });
   });
   const tlEnd = (e) => { if (tlDrag && e.pointerId === tlDrag.id) { tlDrag = null; tl.classList.remove("is-dragging"); } };
@@ -1063,7 +1082,7 @@ body::after {
 </script>
 <script type="module">
   // BrainTM: scrolling the projects moves the axial slice from the top of the brain down.
-  import { mountBrainHero } from "./brain/brain-hero.js?v=21";
+  import { mountBrainHero } from "./brain/brain-hero.js?v=22";
   const root = document.getElementById("brain");
   const counter = document.getElementById("slice-counter");
   const tlN = document.getElementById("tl-n");
@@ -1091,13 +1110,16 @@ body::after {
       const f = frac(e.clientY), cur = window.scrollY / (maxScroll() || 1);
       // grabbing near the handle keeps the offset, like a scrollbar thumb; a press elsewhere jumps there
       const near = Math.abs(f - cur) * ticks.getBoundingClientRect().height < 24;
-      drag = { id: e.pointerId, off: near ? cur - f : 0 };
-      if (!near) scrollToY(f * maxScroll());
+      drag = { id: e.pointerId, off: near ? cur - f : 0, y: e.clientY };
+      window.stopGlide();
+      if (!near) window.glideScroll(f * maxScroll(), Math.abs(f - cur) * ((count || 54) - 1));
       ticks.setPointerCapture(e.pointerId); ticks.classList.add("is-dragging");
     }, true);
     root.addEventListener("pointermove", (e) => {
       if (!drag || e.pointerId !== drag.id) return;
       e.stopPropagation();
+      if (Math.abs(e.clientY - drag.y) < 4 && !drag.moved) return;   // a still press keeps gliding
+      if (!drag.moved) { drag.moved = true; window.stopGlide(); }
       scrollToY(Math.min(1, Math.max(0, frac(e.clientY) + drag.off)) * maxScroll());
     }, true);
     const end = (e) => { if (!drag || e.pointerId !== drag.id) return; e.stopPropagation(); drag = null; ticks.classList.remove("is-dragging"); };
@@ -1279,29 +1301,56 @@ body::after {
     if (i !== popNear) { popTickEls.forEach((t, k) => t.classList.toggle("near", Math.abs(k - i) <= 1)); popNear = i; }
   }
   const setPopF = (f) => { popF = Math.min(1, Math.max(0, f)); apply(); placePopTl(); };
+  // a press away from the handle walks the slice there one at a time (46 ms a step)
+  let popWalk = 0;
+  const stopPopWalk = () => { cancelAnimationFrame(popWalk); popWalk = 0; };
+  const walkPopTo = (f) => {
+    stopPopWalk();
+    const n = popTickEls.length || 54, from = Math.round(popF * (n - 1)), to = Math.round(Math.min(1, Math.max(0, f)) * (n - 1)), t0 = performance.now() - 46;
+    const step = (now) => {   // by the clock, so a slow frame never slows the walk
+      const k = Math.min(Math.abs(to - from), Math.floor((now - t0) / 46)), i = from + Math.sign(to - from) * k;
+      if (i !== Math.round(popF * (n - 1))) setPopF(i / (n - 1));
+      popWalk = i === to ? 0 : requestAnimationFrame(step);
+    };
+    popWalk = requestAnimationFrame(step);
+  };
+  // desktop: the ticks under the mouse swell like the Dock, and the slice there shows through the brain as a ghost
+  popTl.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse" || phone.matches || popDrag) return;
+    const n = popTickEls.length || 1, hi = Math.min(1, Math.max(0, popFrac(e))) * (n - 1);
+    popTl.classList.add("is-dock");
+    popTickEls.forEach((t, k) => { const d = Math.abs(k - hi), w = Math.max(0, Math.min(1, 1 - d / 4)); t.style.width = `${(k % 5 === 0 ? 18 : 12) + 30 * w * w * (3 - 2 * w)}px`; });
+    miniHero?.setGhost(n - Math.round(hi));
+  });
+  popTl.addEventListener("pointerleave", () => { popTl.classList.remove("is-dock"); popTickEls.forEach((t) => (t.style.width = "")); miniHero?.setGhost(null); });
   const popFrac = (e) => { const r = popTrack.getBoundingClientRect(); return phone.matches ? (e.clientX - r.left) / (r.width || 1) : (e.clientY - r.top) / (r.height || 1); };
   const popLen = () => phone.matches ? popTrack.clientWidth : popTrack.clientHeight;
   let popDrag = null;
   popTl.addEventListener("pointerdown", (e) => {
     e.preventDefault(); e.stopPropagation();
     const f = popFrac(e), near = Math.abs(f - popF) * popLen() < 24;  // grabbing the handle keeps the offset
-    popDrag = { id: e.pointerId, off: near ? popF - f : 0 };
-    if (!near) setPopF(f);
+    popDrag = { id: e.pointerId, off: near ? popF - f : 0, x: e.clientX, y: e.clientY };
+    stopPopWalk(); miniHero?.setGhost(null);
+    if (!near) walkPopTo(f);
     popTl.setPointerCapture(e.pointerId); popTl.classList.add("is-dragging");
   });
-  popTl.addEventListener("pointermove", (e) => { if (popDrag && e.pointerId === popDrag.id) setPopF(popFrac(e) + popDrag.off); });
+  popTl.addEventListener("pointermove", (e) => {
+    if (!popDrag || e.pointerId !== popDrag.id) return;
+    if (popWalk) { if (Math.hypot(e.clientX - popDrag.x, e.clientY - popDrag.y) < 4) return; stopPopWalk(); popDrag.off = 0; }
+    setPopF(popFrac(e) + popDrag.off);
+  });
   const popEnd = (e) => { if (popDrag && e.pointerId === popDrag.id) { popDrag = null; popTl.classList.remove("is-dragging"); } };
   popTl.addEventListener("pointerup", popEnd); popTl.addEventListener("pointercancel", popEnd);
   popTl.addEventListener("keydown", (e) => {
     const n = popTickEls.length || 54, step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 1, ArrowUp: -1, Home: -n, End: n }[e.key];
     if (!step) return;
-    e.preventDefault(); setPopF(Math.round(popF * (n - 1) + step) / (n - 1));
+    e.preventDefault(); stopPopWalk(); setPopF(Math.round(popF * (n - 1) + step) / (n - 1));
   });
   addEventListener("resize", () => { if (isOpen) placePopTl(); });
   // desktop: the wheel (or a two-finger swipe) anywhere in the popup moves the slice, ~2 slices per wheel notch
   pop.addEventListener("wheel", (e) => {
     if (!isOpen || phone.matches) return;
-    e.preventDefault();
+    e.preventDefault(); stopPopWalk();
     const px = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY;
     setPopF(popF + px / 2600);
   }, { passive: false });
