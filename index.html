@@ -387,11 +387,15 @@ body::after {
 .brain-note.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 240ms ease-out 2300ms; }
 /* leaving is the same drawing played backwards: the arrowhead, then the shaft, then the text un-writes; the box hides last */
 .brain-note:not(.is-on) { transition: opacity 200ms var(--ease) 2300ms, visibility 0s linear 2500ms; }
-.brain-note:not(.is-on) .head  { transition: stroke-dashoffset 240ms ease-in; }
-.brain-note:not(.is-on) .shaft { transition: stroke-dashoffset 800ms cubic-bezier(.7,0,.4,.95) 200ms; }
+/* the head is a V through the tip, so undrawing it leaves a stray barb hanging on; it fades out whole instead */
+.brain-note-arrow .head { opacity: 0; }
+.brain-note.is-on .head { opacity: 1; }
+.brain-note:not(.is-on) .head  { transition: opacity 180ms ease-in, stroke-dashoffset 0s linear 180ms; }
+.brain-note:not(.is-on) .shaft { transition: stroke-dashoffset 800ms cubic-bezier(.7,0,.4,.95) 120ms; }
 .brain-note:not(.is-on) .brain-note-text { transition: clip-path 1500ms cubic-bezier(.45,.05,.55,.9) 900ms; }
 @media (prefers-reduced-motion: reduce) {
   .brain-note-arrow path { stroke-dashoffset: 0; }
+  .brain-note-arrow .head { opacity: 1; }
   .brain-note-text { clip-path: none; }
   .brain-note.is-on .shaft, .brain-note.is-on .head, .brain-note.is-on .brain-note-text,
   .brain-note:not(.is-on) .shaft, .brain-note:not(.is-on) .head, .brain-note:not(.is-on) .brain-note-text { transition: none; }
