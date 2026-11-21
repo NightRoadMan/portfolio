@@ -3856,7 +3856,7 @@ void main() {
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a5 5 0 1 0 1.5-3.6"/><path d="M3 3v3h3"/></svg>Reset
   </button>
 </aside>
-<div class="bh-loader" data-loader>LOADING SCAN</div>`,bm=`
+<div class="bh-loader" data-loader>Загружаем МРТ</div>`,bm=`
   attribute float aVal, aTissue;
   attribute vec3 aNormal;
   uniform float uSize, uClipZ, uPixelRatio, uTime, uSpin, uSpinEnergy, uSliceEnergy, uSliceVel, uSizeZ;
