@@ -362,7 +362,7 @@ body::after {
 
 /* ---------- Narrow ---------- */
 /* handwritten note under the brain, arrow up to it: the text writes itself, then the arrow draws;
-   stays 10 s, then fades out */
+   stays 10 s, then undraws in reverse */
 .brain-note {
   --r: calc(0.305 * min(100vh, var(--bw)));
   position: absolute; z-index: 4; margin: 0; width: 110px; height: 80px; pointer-events: none;
@@ -385,10 +385,17 @@ body::after {
 .brain-note.is-on .brain-note-text { clip-path: inset(-20% -5% -20% 0); transition: clip-path 1500ms cubic-bezier(.45,.1,.55,.95) 150ms; }
 .brain-note.is-on .shaft { stroke-dashoffset: 0; transition: stroke-dashoffset 800ms cubic-bezier(.6,.05,.3,1) 1550ms; }
 .brain-note.is-on .head  { stroke-dashoffset: 0; transition: stroke-dashoffset 240ms ease-out 2300ms; }
+/* leaving is the same drawing played backwards: the arrowhead, then the shaft, then the text un-writes; the box hides last */
+.brain-note:not(.is-on) { transition: opacity 200ms var(--ease) 2300ms, visibility 0s linear 2500ms; }
+.brain-note:not(.is-on) .head  { transition: stroke-dashoffset 240ms ease-in; }
+.brain-note:not(.is-on) .shaft { transition: stroke-dashoffset 800ms cubic-bezier(.7,0,.4,.95) 200ms; }
+.brain-note:not(.is-on) .brain-note-text { transition: clip-path 1500ms cubic-bezier(.45,.05,.55,.9) 900ms; }
 @media (prefers-reduced-motion: reduce) {
   .brain-note-arrow path { stroke-dashoffset: 0; }
   .brain-note-text { clip-path: none; }
-  .brain-note.is-on .shaft, .brain-note.is-on .head, .brain-note.is-on .brain-note-text { transition: none; }
+  .brain-note.is-on .shaft, .brain-note.is-on .head, .brain-note.is-on .brain-note-text,
+  .brain-note:not(.is-on) .shaft, .brain-note:not(.is-on) .head, .brain-note:not(.is-on) .brain-note-text { transition: none; }
+  .brain-note:not(.is-on) { transition: opacity 800ms var(--ease), visibility 0s linear 800ms; }
 }
 
 /* ---------- Desktop hero (after annapaliivets.ru, Артем 2026-11-19) ----------
@@ -878,24 +885,19 @@ body::after {
   }
   window.addEventListener("resize", () => { if (note.classList.contains("is-on") && !placeNote()) note.classList.remove("is-on"); });
   // phones: the note belongs to the intro brain card, so it stays: it draws itself once it is on screen and never hides
-  let noteTimer = 0;
-  if (!wide.matches) {
+    if (!wide.matches) {
     const io = new IntersectionObserver(([e]) => {
       if (!e.isIntersecting) return;
       setTimeout(() => note.classList.add("is-on"), 400); io.disconnect();
     }, { threshold: 0.9 });
     io.observe(note);
   } else {
-    noteTimer = setTimeout(() => {
+    setTimeout(() => {
       if (window.scrollY > window.innerHeight * 0.2) return;
       if (!placeNote()) return;
       note.classList.add("is-on");
-      setTimeout(() => note.classList.remove("is-on"), 10000);
+      setTimeout(() => note.classList.remove("is-on"), 10000);  // scrolling doesn't hide it: it rides along with the brain
     }, 1200);
-    // desktop: it points at the full-size brain, so it leaves early once the visitor scrolls on
-    window.addEventListener("scroll", function hideNote() {
-      if (window.scrollY > window.innerHeight * 0.2) { note.classList.remove("is-on"); clearTimeout(noteTimer); window.removeEventListener("scroll", hideNote); }
-    }, { passive: true });
   }
   // On the projects the brain must fit the free lane between the content column and the scale,
   // so it never covers a cover image. The brain's drawn width is ~0.61 × min(screen height, brain area width)
